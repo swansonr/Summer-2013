@@ -12,6 +12,7 @@
 
 using namespace std;
 
+//Simple factorial function
 unsigned long factorial(unsigned long f)
 {
     if ( f == 0 ) 
@@ -19,6 +20,7 @@ unsigned long factorial(unsigned long f)
     return(f * factorial(f - 1));
 }
 
+//Print an mxn matrix given a string of 0's and 1's
 void printmatrix(const std::string line, const int m, const int n)
 {
     for(int i=0; i<m*n && line.size() >= m*n; i++)
@@ -28,6 +30,7 @@ void printmatrix(const std::string line, const int m, const int n)
     }
 }
 
+//Checks for transversals as described in transcount.cpp
 bool is_transversal(const vector<int> vec, const vector<int> a, const int m, const int n)
 {
     vector<int> check;
@@ -85,6 +88,7 @@ int main(int argc, char **argv)
     {
         if(lc != 0 && lc%(m*n+4) == 0) //line.compare("") == 0 && last.size() > 0)
         {
+            //Output matrix and canon number
             cout << ++cancount << ":" << endl;
             printmatrix(line, m, n);
  
@@ -102,8 +106,8 @@ int main(int argc, char **argv)
                 }
             }
 
-            int tcount = 0;
             //Count traversals
+            int tcount = 0;
             do
             {
                 if(is_transversal(perm, counter, m, n))
@@ -115,7 +119,6 @@ int main(int argc, char **argv)
 
             cout << "Killed: " << total - tcount << "/" << total << " (";
             cout << ((double)(total-tcount))/total << ")" << endl << endl;
-            
         }
         lc++;
     }
