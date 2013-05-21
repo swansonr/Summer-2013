@@ -8,44 +8,30 @@ using namespace std;
 
 #define NOP 999 //Negative values don't work in permute so we have something really big
 
-void print_vec(vector<int> vect)
-{
-    for( vector<int>::iterator i = vect.begin(); i != vect.end(); i++ )
-    {
-        cout << *i << " ";
-    }
-    cout << endl;
-}
-
+//Checks for transversals given locations in vec of an mxn matrix 'a'
 bool is_transversal(const vector<int> vec, const int *a, const int m, const int n)
 {
     vector<int> check;
 
+    //Get values from 'a' as specified by vec
     for( int i = 0; i < vec.size(); i++ )
     {
+        //Ignore columns with NOP values
         if(vec[i] != NOP)
         {
             check.push_back(a[vec[i]*n + i]);
         }
     }
 
-    /* By definition this should never be the case
-    if( check.size() != m)
-    {
-        printf("DNE m\n");
-        return false;
-    }
-    */
-
+    //Sort the values from 'a'
     sort(check.begin(), check.end());
 
+    //If any of the values are the same it isn't a transversal
     for( int i = 0; i < check.size()-1; i++ )
     {
         if( check[i] == check[i+1] ) return false;
     }
     
-    //print_vec(check);
-
     return true;
 }
 
@@ -53,8 +39,7 @@ int main(int argc, char **argv)
 {
     vector<int> vec;
     int *a;
-    int m;
-    int n;
+    int m, n;
 
     //Read size of matrix
     cin >> m >> n;
@@ -99,7 +84,6 @@ int main(int argc, char **argv)
         if(is_transversal(vec, a, m, n))
         {
             count++;
-            //print_vec(vec);
         }
     } 
     while(next_permutation(vec.begin(), vec.end()));
