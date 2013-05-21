@@ -1,4 +1,5 @@
-// Count transversals given an mxn array
+//A brute force method to finding if there are any transversals for a given freq
+//counter and matrix size
 
 #include <iostream>
 #include <vector>
