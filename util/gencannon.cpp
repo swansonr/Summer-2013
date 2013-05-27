@@ -2,7 +2,7 @@
 //of each possible combination of f 1's.
 
 // Possible command to find a short list of only canonical forms
-//./gencanon | nauty/dretog | nauty/shortg -k -v | nauty/listg -o1 -a > output.txt
+//./gencanon | ../nauty/dretog | ../nauty/shortg -k -v | ../nauty/listg -o1 -a > output.txt
 
 #include <iostream>
 #include <sstream>
