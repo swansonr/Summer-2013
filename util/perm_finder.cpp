@@ -16,6 +16,21 @@
 
 using namespace std;
 
+string transpose(const string line, const int m, const int n)
+{
+    string trans = line;
+
+    for(int i=0; i<m; i++)
+    {
+        for(int j=0; j<n; j++)
+        {
+            trans.at(i*n + j) = line.at(j*n + i);
+        }
+    }
+
+    return trans;
+}
+
 int main(int argc, char **argv)
 {
     int m, n;
@@ -35,6 +50,7 @@ int main(int argc, char **argv)
             //Output matrix and canon number
             //cout << line << endl;
             vec.push_back(line);
+            vec.push_back( transpose(line, m, n) );
         }
         lc++;
     }

@@ -62,12 +62,11 @@ int main(int argc, char **argv)
     
     int curr = f;
     //-------- Reading canonical forms
-    while(getline(cin, fline) && curr >= 0)
+    if(getline(cin, fline))
     {
         if(verbose) cout << "Opening File: " << fline << endl;
         ifstream fhandle;
         string sline;
-        vector<cform> vec;
 
         fhandle.open(fline.c_str(), ifstream::in);
         if(fhandle.is_open())
@@ -78,14 +77,27 @@ int main(int argc, char **argv)
             {
                 if(lc%(m*n+4) == 0)
                 {
-                    //Output matrix
-                    //if(verbose) cout << sline << endl;
-                    if(curr == f)
-                        nqueue.push( qnode(sline, count++, m, n) );
-                    vec.push_back( cform(sline, m, n, false) );
-                    vec.push_back( cform(sline, m, n, true) );
+                    nqueue.push( qnode(sline, count++, m, n) );
                 }
                 lc++;
+            }
+        }
+    }
+
+    //-------- Read canonical permutations
+    while(getline(cin, fline) && curr >= 0)
+    {
+        if(verbose) cout << "Opening File: " << fline << endl;
+        ifstream fhandle;
+        string sline;
+        vector<cform> vec;
+
+        fhandle.open(fline.c_str(), ifstream::in);
+        if(fhandle.is_open())
+        {
+            while(getline(fhandle, sline))
+            {
+                vec.push_back( cform(sline, m, n, false) );
             }
             sort(vec.begin(), vec.end());
             cout << "Insert Forms " << curr << " " << vec.size() << endl;
@@ -98,32 +110,6 @@ int main(int argc, char **argv)
         }
     }
     
-    //Print canonical forms
-    if(verbose) 
-    {
-        cout << "Canon Queue: (" << forms.size() << ") " << endl;
-        for(int i=forms.size()-1; i>=0; i--)
-        {
-            cout << "f == " << (i+1) << " (" << forms[i].size() << ") " << endl;
-            for(int j=0; j<forms[i].size(); j++)
-               forms.at(i).at(j).print_clean(4,4);
-        }
-    }
-    
-    //Initial vectors that describe the way the rows and columns are permuted
-    // init_rows = [1,m]
-    // init_cols = [1,n]
-    vector<int> init_rows;
-    vector<int> init_cols;
-    for(int i=1; i<=m; i++)
-    {
-        init_rows.push_back(i);
-    }
-    for(int i=1; i<=n; i++)
-    {
-        init_cols.push_back(i);
-    }
-
     if(verbose) cout << "Queue Size: " << nqueue.size() << endl;
     // Start popping the queue and inserting canonical forms
     while( !nqueue.empty() )
@@ -138,38 +124,26 @@ int main(int argc, char **argv)
         
         for(int i=0; i<curr_forms.size(); i++)
         {
-            //For every canonical form make a copy of the row and column permutation vectors
-            //and attempt to insert every permutation of it
-            vector<int> curr_rows = init_rows;
-            do
+            //insert sets valid to false if the cform cannot be inserted
+            bool valid = true;
+            qnode temp = curr.insert(curr_forms[i], valid);
+            
+            if(valid)
             {
-                vector<int> curr_cols = init_cols;
-                do
+                //Check if we have found a counter-example
+                if(temp.get_trans() <= 0)
                 {
-                    //insert sets valid to false if the cform cannot be inserted
-                    bool valid = true;
-                    qnode temp = curr.insert(curr_forms[i], curr_rows, curr_cols, valid);
-                    
-                    if(valid)
-                    {
-                        //Check if we have found a counter-example
-                        if(temp.get_trans() <= 0)
-                        {
-                            cout << "Counter-Example Found: (" << temp.get_trans() << ") " << endl;
-                            temp.print_clean();
-                            //return EXIT_SUCCESS;
-                        }
-                        //Check if the matrix is full or not
-                        else if(temp.get_next_freq() < freqs.size())
-                        {
-                            //Matrix is not full!
-                            nqueue.push( temp );
-                        }
-                    }
+                    cout << "Counter-Example Found: (" << temp.get_trans() << ") " << endl;
+                    temp.print_clean();
+                    //return EXIT_SUCCESS;
                 }
-                while(next_permutation(curr_cols.begin(), curr_cols.end()));
+                //Check if the matrix is full or not
+                else if(temp.get_next_freq() < freqs.size())
+                {
+                    //Matrix is not full!
+                    nqueue.push( temp );
+                }
             }
-            while(next_permutation(curr_rows.begin(), curr_rows.end()));
         }
     }
 

@@ -113,6 +113,29 @@ class qnode
         return qnode(new_mat, start, m, n, next_val+1, next_freq+1);
     }
 
+    qnode insert(cform cf, bool &valid)
+    {
+        vector<int> new_mat = matrix;
+        vector<int> cf_mat = cf.get_matrix();
+        valid = true;
+
+        for(int i=0; i<m*n; i++)
+        {
+            if(cf_mat[i] != 0)
+            {
+                if(matrix[i] <= m*n)
+                    new_mat[i] = next_val;
+                else
+                {
+                    valid = false;
+                    continue;
+                }
+            }
+        }
+
+        return qnode(new_mat, start, m, n, next_val+1, next_freq+1);
+    }
+
     int get_trans() const
     {
         return trans;
