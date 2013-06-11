@@ -10,10 +10,11 @@ using namespace std;
 int main(int argc, char **argv)
 {
     int m, n;
-    std::string line;
+    string line;
+    vector<string> vec;
 
-    std::cin >> m >> n;
-    std::cout << m << " " << n << std::endl;
+    cin >> m >> n;
+    cout << m << " " << n << std::endl;
     
     int lc = 1;
     while(std::getline(std::cin, line))
@@ -22,6 +23,7 @@ int main(int argc, char **argv)
         {
             //Output matrix and canon number
             cout << line << endl;
+            vec.push_back(line);
         }
         lc++;
     }
