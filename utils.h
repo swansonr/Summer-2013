@@ -9,6 +9,13 @@
 
 using namespace std;
 
+#include <iostream>
+#include <sstream>
+#include <algorithm>
+#include <vector>
+#include <string>
+#include "qnode.h"
+
 #define NOP 999 
 
 //Count traversals
@@ -63,5 +70,39 @@ unsigned long factorial(unsigned long f)
         return 1;
     return(f * factorial(f - 1));
 }
+
+string get_initial(const int m, const int n)
+{
+    string matrix = "";
+    stringstream ss;
+    
+    for(int i=0; i<m*n; i++)
+    {
+        ss << i;
+        matrix += ss.str();
+        matrix += ":";
+        for(int j=(i%n) + 1; j<n; j++)
+        {
+            ss.str(std::string());  //Clear stringstream
+            ss << ((i/n)*n + j);
+            matrix += " ";
+            matrix += ss.str();// ((i/n)*n + j);
+        }
+        for(int j=(i/n)*n + (i%n) + n; j<m*n; j += n)
+        {
+            ss.str(std::string());  //Clear stringstream
+            ss << j;
+            matrix += " ";
+            matrix += ss.str();// j;
+        }
+
+        matrix += ";\n";
+        ss.str(std::string());
+    }
+
+    return matrix;
+}
+
+
 
 #endif

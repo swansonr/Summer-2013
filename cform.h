@@ -8,7 +8,6 @@
  *      int kills               The number of transversals this form will kill.
  */
 
-
 #ifndef _CFORM_H_
 #define _CFORM_H_
 
@@ -19,6 +18,7 @@ using namespace std;
 class cform
 {
     vector<int> matrix;
+	vector<int> pos;
     int kills;
 
     public:
@@ -28,9 +28,10 @@ class cform
         kills = 0;
     }
 
-    cform(vector<int> m, int k)
+    cform(vector<int> m, int k=0)
     {
-        matrix = m;
+        //matrix = m;
+        pos = m;
         kills = k;
     }
 
@@ -46,12 +47,17 @@ class cform
             }
             else
             {
+				pos.push_back(i);
                 matrix.push_back(1);
                 tempm.push_back(m*n*2);
             }
         }
 
         //If we're inserting the transpose of the canonical form, transpose it
+		/*
+
+			No longer needed! Transpose and permutations of rows and columns are generated beforehand!
+
         if(transpose)
         {
             vector<int> tempt = tempm;
@@ -66,6 +72,7 @@ class cform
                 }
             }
         }
+		*/
 
         //We know that an mxn matrix has m! transversals so we can
         //easily compute how many this form will kill
@@ -102,6 +109,11 @@ class cform
     {
         return matrix;
     }
+
+	vector<int> get_pos()
+	{
+		return pos;
+	}
 };
 
 //Less than and greater than functions used by priority_queue and/or sort

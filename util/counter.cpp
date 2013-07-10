@@ -1,6 +1,7 @@
 //A brute force method to finding if there are any transversals for a given freq
 //counter and matrix size
 
+#include <stdio.h>
 #include <iostream>
 #include <vector>
 #include <algorithm>
@@ -44,6 +45,7 @@ int main(int argc, char **argv)
 {
     int m;
     int n;
+	int pcount = 0;
 
     //Read size of matrix
     cin >> m >> n;
@@ -77,7 +79,7 @@ int main(int argc, char **argv)
 
     int count = 0;
     int perms = 0;
-    do
+    //do
     {
         int tcount = 0;
         perms++;
@@ -100,12 +102,13 @@ int main(int argc, char **argv)
             {
                 tcount++;
             }
+
         } 
         while(next_permutation(vec.begin(), vec.end()));
 
         if(tcount > 0) count++;
     }
-    while(next_permutation(matrix.begin(), matrix.end()));
+    //while(next_permutation(matrix.begin(), matrix.end()));
 
     printf("Transversal Count: %d/%d\n", count, perms);
     

@@ -30,9 +30,13 @@
  *
  *  TODO:
  *          - Don't insert cforms we know won't work
- *          - Check if the transversal is the same and don't insert it if it is
  */
 
+#ifdef DEBIAN
+#include <boost/timer/timer.hpp>
+#endif
+
+#include <boost/unordered_set.hpp>
 #include <iostream>
 #include <fstream>
 #include <vector>
@@ -44,27 +48,37 @@ using namespace std;
 
 int main(int argc, char **argv)
 {
+#ifdef DEBIAN
+	cout << "!Timer Started." << endl;
+	boost::timer::auto_cpu_timer t_dot;
+#endif
+
     bool verbose = true;
+    bool dreadly = true;
     int m, n, f;
-    string fline, freqs;
+    string fline, freqs, initial;
     vector< vector<cform> > forms;
+
     priority_queue< qnode, vector<qnode>, less<vector<qnode>::value_type> > nqueue;
+    boost::unordered_set< qnode, boost::hash<qnode> > nhash;
+    pair< boost::unordered_set<qnode>::iterator, bool> ihash;
     
     //---- Reading data from input files
     
     cin >> m >> n >> f;
     forms.resize(f);
-    if(verbose) cout << "m n f: " << m << " " << n << " " << f << endl;
+    if(verbose) cout << "!m n f: " << m << " " << n << " " << f << endl;
 
     getline(cin, freqs);
     getline(cin, freqs);
-    if(verbose) cout << "Freqs: " << freqs << endl;
+    if(verbose) cout << "!Freqs: " << freqs << endl;
+    initial = get_initial(m,n);
     
     int curr = f;
     //-------- Reading canonical forms
     if(getline(cin, fline))
     {
-        if(verbose) cout << "Opening File: " << fline << endl;
+        if(verbose) cout << "!Opening File: " << fline << endl;
         ifstream fhandle;
         string sline;
 
@@ -77,17 +91,25 @@ int main(int argc, char **argv)
             {
                 if(lc%(m*n+4) == 0)
                 {
-                    nqueue.push( qnode(sline, count++, m, n) );
+                    qnode temp = qnode(sline, count++, m, n);
+                    nqueue.push(temp);
+                    ihash = nhash.insert(temp);
+                    cout << "Initial Insert:\n";
+                    temp.print_clean();
                 }
                 lc++;
             }
         }
+		else
+		{
+			fprintf(stderr, "Error: Unable to open file %s\n", fline.c_str());
+		}
     }
 
     //-------- Read canonical permutations
     while(getline(cin, fline) && curr >= 0)
     {
-        if(verbose) cout << "Opening File: " << fline << endl;
+        if(verbose) cout << "!Opening File: " << fline << endl;
         ifstream fhandle;
         string sline;
         vector<cform> vec;
@@ -97,25 +119,35 @@ int main(int argc, char **argv)
         {
             while(getline(fhandle, sline))
             {
-                vec.push_back( cform(sline, m, n, false) );
+                vec.push_back( cform(sline, m, n) );
+				cform ttemp = cform(sline, m, n);
+				ttemp.print_clean(m,n);
             }
             sort(vec.begin(), vec.end());
-            cout << "Insert Forms " << curr << " " << vec.size() << endl;
+            if(verbose) cout << "!Insert Forms " << curr << " " << vec.size() << endl;
             forms[--curr] = vec;
         }
         else
         {
-            cout << "Could not open file: " << fline << endl;
+			fprintf(stderr, "Error: Unable to open file %s\n", fline.c_str());
+            //cout << "Could not open file: " << fline << endl;
             //return 1;
         }
     }
     
-    if(verbose) cout << "Queue Size: " << nqueue.size() << endl;
+    if(verbose) cout << "!Queue Size: " << nqueue.size() << endl;
+    int counter_count = 0;
+    int valid_count = 0;
+    int insert_count = 0;
+    //int last = 0;
     // Start popping the queue and inserting canonical forms
     while( !nqueue.empty() )
     {
         qnode curr = nqueue.top();
         nqueue.pop();
+
+        //If it's the second to last insertion we can do the trivial insertion as well.
+        bool last_insert = (curr.get_next_freq() == (freqs.size() - 1));
 
         //Get the vector of canonical forms that have the same number of frequencies needed
         //by the current qnode
@@ -126,27 +158,44 @@ int main(int argc, char **argv)
         {
             //insert sets valid to false if the cform cannot be inserted
             bool valid = true;
-            qnode temp = curr.insert(curr_forms[i], valid);
+            qnode temp = curr.insert(curr_forms[i], valid, last_insert);
             
             if(valid)
             {
                 //Check if we have found a counter-example
                 if(temp.get_trans() <= 0)
                 {
-                    cout << "Counter-Example Found: (" << temp.get_trans() << ") " << endl;
-                    temp.print_clean();
+                    if(verbose) cout << "! #" << counter_count++ << " - Counter-Example Found:" << endl; 
+                    if(dreadly) temp.print_dread(initial, counter_count);
+                    else temp.print_clean();
                     //return EXIT_SUCCESS;
                 }
                 //Check if the matrix is full or not
                 else if(temp.get_next_freq() < freqs.size())
                 {
+                    valid_count++;
                     //Matrix is not full!
-                    nqueue.push( temp );
+                    ihash = nhash.insert(temp);
+                    if(ihash.second)
+                    {
+                        insert_count++;
+                        nqueue.push( temp );
+                    }
                 }
             }
+
+			/*
+            if(verbose && insert_count % 100 == 0 && insert_count != last)
+            {
+                last = insert_count;
+                if(verbose) cout << "!Valid: " << valid_count << "\tInsert: " << insert_count << endl;
+            }
+			*/
         }
     }
 
-    cout << "Queue Cleared." << endl;
+    if(verbose) cout << "!Queue Cleared." << endl;
+    if(verbose) cout << "!Valid Insertions: " << valid_count << "\tActual Insertions: " << insert_count << endl;
+
     return 0;
 }
