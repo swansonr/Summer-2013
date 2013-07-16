@@ -90,8 +90,8 @@ class qnode
         n = nn;
         next_freq = nf;
         next_val = nv;
-        printf("INSERT MATRIX: ");
-        print_matrix();
+        //printf("INSERT MATRIX: ");
+        //print_matrix();
         trans = trans_count(matrix, m, n);
 		weight = calc_weight();
     }

@@ -94,8 +94,8 @@ int main(int argc, char **argv)
                     qnode temp = qnode(sline, count++, m, n);
                     nqueue.push(temp);
                     ihash = nhash.insert(temp);
-                    cout << "Initial Insert:\n";
-                    temp.print_clean();
+//                    cout << "Initial Insert:\n";
+                    //temp.print_clean();
                 }
                 lc++;
             }
@@ -121,7 +121,7 @@ int main(int argc, char **argv)
             {
                 vec.push_back( cform(sline, m, n) );
 				cform ttemp = cform(sline, m, n);
-				ttemp.print_clean(m,n);
+				//ttemp.print_clean(m,n);
             }
             sort(vec.begin(), vec.end());
             if(verbose) cout << "!Insert Forms " << curr << " " << vec.size() << endl;
