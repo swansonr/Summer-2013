@@ -28,8 +28,6 @@
  *      ...
  *      canon_list_1.file
  *
- *  TODO:
- *          - Don't insert cforms we know won't work
  */
 
 #ifdef DEBIAN
@@ -61,12 +59,13 @@ int main(int argc, char **argv)
     string fline, freqs, initial;
     vector< vector<cform> > forms;
 
-    priority_queue< qnode, vector<qnode>, less<vector<qnode>::value_type> > nqueue;
+    //priority_queue< qnode, vector<qnode>, less<vector<qnode>::value_type> > nqueue;
+    vector<qnode> nqueue;
     boost::unordered_set< qnode, boost::hash<qnode> > nhash;
     pair< boost::unordered_set<qnode>::iterator, bool> ihash;
     
-    //---- Reading data from input files
-    
+
+    //--------- Reading data from input files
     cin >> m >> n >> f >> lim;
     forms.resize(f);
     if(verbose)
@@ -81,8 +80,9 @@ int main(int argc, char **argv)
     if(verbose) cout << "!Freqs: " << freqs << endl;
     initial = get_initial(m,n);
     
-    int curr = f;
+
     //-------- Reading canonical forms
+    int curr = f;
     if(getline(cin, fline))
     {
         if(verbose) cout << "!Opening File: " << fline << endl;
@@ -100,8 +100,11 @@ int main(int argc, char **argv)
                 {
                     if(lim < 0 || lim == count)
                     {
-                        single = qnode(sline, count, m, n);
-                        nqueue.push(single);
+                        vector<int> starts(freqs[0] - '0');
+                        if(lim >= 0) starts[freqs[0] - '0' - 1] = lim;
+
+                        single = qnode(sline, starts, m, n);
+                        nqueue.push_back(single);
                         ihash = nhash.insert(single);
                         if(verbose && lim >= 0)
                         {
@@ -175,71 +178,79 @@ int main(int argc, char **argv)
     int last_counter = 0;
     int last = 0;
     int bad_full = 0;
+    int round = 1;
     // Start popping the queue and inserting canonical forms
     while( !nqueue.empty() )
     {
-        qnode curr = nqueue.top();
-        nqueue.pop();
-
-        //If it's the second to last insertion we can do the trivial insertion as well.
-        bool last_insert = false;
-        if(curr.get_next_freq() == (freqs.size() - 2))
+        vector<qnode> breadth;
+        while( !nqueue.empty() )
         {
-            last_insert = true;
-            last_counter++;
-        }
+            qnode curr = nqueue.back();
+            nqueue.pop_back();
 
-        //Get the vector of canonical forms that have the same number of frequencies needed
-        //by the current qnode
-        int next_freq = freqs[curr.get_next_freq()] - '0' - 1;
-        vector<cform> curr_forms = forms.at(next_freq);
-
-        //If we're limiting values then we want to skip frequencies that we know won't work.
-        int skip = ((lim > 0) && (next_freq == 0)) ? cstart[lim] : 0;
-
-        
-        for(int i=skip; i<curr_forms.size(); i++)
-        {
-            //insert sets valid to false if the cform cannot be inserted
-            bool valid = true;
-            qnode temp = curr.insert(curr_forms[i], valid, last_insert);
-            
-            if(valid)
+            //If it's the second to last insertion we can do the trivial insertion as well.
+            bool last_insert = false;
+            if(curr.get_next_freq() == (freqs.size() - 2))
             {
-                //Check if we have found a counter-example
-                if(temp.get_trans() <= 0)
+                last_insert = true;
+                last_counter++;
+            }
+
+            //Get the vector of canonical forms that have the same number of frequencies needed
+            //by the current qnode
+            int next_freq = freqs[curr.get_next_freq()] - '0' - 1;
+            vector<cform> curr_forms = forms.at(next_freq);
+
+            //If we're limiting values then we want to skip frequencies that we know won't work.
+            int skip = curr.get_skip(next_freq); //((lim > 0) && (next_freq == 0)) ? cstart[lim] : 0;
+            
+            for(int i=skip; i<curr_forms.size(); i++)
+            {
+                //insert sets valid to false if the cform cannot be inserted
+                bool valid = true;
+                qnode temp = curr.insert(curr_forms[i], valid, last_insert);
+                
+                if(valid)
                 {
-                    if(verbose) cout << "! #" << counter_count++ << " - Counter-Example Found:" << endl; 
-                    if(dreadly) temp.print_dread(initial, counter_count);
-                    else temp.print_clean();
-                    //return EXIT_SUCCESS;
-                }
-                //Check if the matrix is full or not
-                else if(temp.get_next_freq() < freqs.size())
-                {
-                    valid_count++;
-                    //Matrix is not full!
-                    ihash = nhash.insert(temp);
-                    if(ihash.second)
+                    //Check if we have found a counter-example
+                    //if(temp.get_trans() <= 0)
+                    if(!temp.has_trans())
                     {
-                        insert_count++;
-                        nqueue.push( temp );
+                        if(verbose) cout << "! #" << counter_count++ << " - Counter-Example Found:" << endl; 
+                        if(dreadly) temp.print_dread(initial, counter_count);
+                        else temp.print_clean();
+                        //return EXIT_SUCCESS;
+                    }
+                    //Check if the matrix is full or not
+                    else if(temp.get_next_freq() < freqs.size())
+                    {
+                        valid_count++;
+                        //Matrix is not full!
+                        ihash = nhash.insert(temp);
+                        if(ihash.second)
+                        {
+                            insert_count++;
+                            breadth.push_back( temp );
+                        }
+                    }
+                    //Else it is full but not a counter example
+                    else
+                    {
+                        bad_full++;
                     }
                 }
-                //Else it is full but not a counter example
-                else
+
+                if(verbose && insert_count % 500 == 0 && insert_count != last)
                 {
-                    bad_full++;
+                    last = insert_count;
+                    if(verbose) cout << "!Valid: " << valid_count << "\tInsert: " << insert_count;
+                    if(verbose) cout << "\tLast Insertions: " << last_counter << " (" << bad_full << ")" << endl;
                 }
             }
-
-            if(verbose && insert_count % 100 == 0 && insert_count != last)
-            {
-                last = insert_count;
-                if(verbose) cout << "!Valid: " << valid_count << "\tInsert: " << insert_count;
-                if(verbose) cout << "\tLast Insertions: " << last_counter << " (" << bad_full << ")" << endl;
-            }
         }
+        nqueue = breadth;
+        cout << "!Round " << round << " Finished. New Size = " << nqueue.size() << endl;
+        round++;
     }
 
     if(verbose) cout << "!Queue Cleared." << endl;

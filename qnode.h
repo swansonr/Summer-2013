@@ -12,7 +12,7 @@
  *
  *  int trans           The number of transversals possible in the current matrix
  *
- *  int start           The canonical form in which the matrix was started (will be used to
+ *  vector<int> starts  The canonical form in which the matrix was started (will be used to
  *                      eliminate duplicate matrices/qnodes.)
  *
  *  int next_val        The next values from [2*m*n, ...] to be placed in the subsequent
@@ -35,8 +35,10 @@ class qnode
 {
     //int *matrix;
     vector<int> matrix;
-    int trans;
-    int start;
+    vector<int> starts;
+    bool trans;
+    //int trans;
+    //int start;
 	int weight;
     int next_val;
     int next_freq;
@@ -47,8 +49,8 @@ class qnode
 
     qnode()
     {
-        trans = 0;
-        start = 0;
+        trans = true;
+        //start = 0;
 		weight = 0;
         next_freq = 0;
         m = 0;
@@ -56,9 +58,9 @@ class qnode
         next_val = 0;
     }
 
-    qnode(string line, int s, int mm, int nn, int nf=1)
+    qnode(string line, vector<int> s, int mm, int nn, int nf=1)
     {
-        start = s;
+        starts = s;
         m = mm;
         n = nn;
         next_val = 2*m*n;
@@ -69,7 +71,6 @@ class qnode
             if(line[i] != '0')
             {
                 matrix.push_back(next_val);
-                //matrix.push_back(line[i]);
             }
             else
             {
@@ -77,22 +78,21 @@ class qnode
             }
         }
 
-        trans = trans_count(matrix, m, n);
+        //trans = trans_count(matrix, m, n);
+        trans = trans_check(matrix, m, n);
 		weight = calc_weight();
         next_val++;
     }
 
-    qnode(vector<int> mat, int s, int mm, int nn, int nv, int nf=1)
+    qnode(vector<int> mat, vector<int> s, int mm, int nn, int nv, int nf=1)
     {
         matrix = mat;
-        start = s;
+        starts = s;
         m = mm;
         n = nn;
         next_freq = nf;
         next_val = nv;
-        //printf("INSERT MATRIX: ");
-        //print_matrix();
-        trans = trans_count(matrix, m, n);
+        trans = trans_check(matrix, m, n);
 		weight = calc_weight();
     }
 
@@ -174,20 +174,27 @@ class qnode
                     new_mat[i] = next_val+1;
                 }
             }
-            return qnode(new_mat, start, m, n, next_val+2, next_freq+2);
+            return qnode(new_mat, starts, m, n, next_val+2, next_freq+2);
         }
 
-        return qnode(new_mat, start, m, n, next_val+1, next_freq+1);
+        return qnode(new_mat, starts, m, n, next_val+1, next_freq+1);
     }
 
-    int get_trans() const
+    bool has_trans() const
     {
         return trans;
     }
 
+    int get_trans() const
+    {
+        cout << "get_trans() is no longer used" << endl;
+        return -1;
+    }
+
     void update_trans()
     {
-        trans = trans_count(matrix, m, n);
+        //trans = trans_count(matrix, m, n);
+        trans = trans_check(matrix, m, n);
     }
 
     //  Tests if there is any overlap between a qnode and cform insertion.
@@ -224,6 +231,11 @@ class qnode
 
 		return result;
 	}
+
+    int get_skip(const int i) const
+    {
+        return starts[i];
+    }
 
 	int get_weight() const
 	{
