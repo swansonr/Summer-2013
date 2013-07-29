@@ -55,7 +55,9 @@ int main(int argc, char **argv)
 
     bool verbose = true;
     bool dreadly = true;
-    int m, n, f;
+    int m, n, f, lim;
+    qnode single;
+    vector<int> cstart;
     string fline, freqs, initial;
     vector< vector<cform> > forms;
 
@@ -65,9 +67,14 @@ int main(int argc, char **argv)
     
     //---- Reading data from input files
     
-    cin >> m >> n >> f;
+    cin >> m >> n >> f >> lim;
     forms.resize(f);
-    if(verbose) cout << "!m n f: " << m << " " << n << " " << f << endl;
+    if(verbose)
+    {
+        cout << "!m n f: " << m << " " << n << " " << f;
+        if(lim >= 0) cout << " lim == " << lim;
+        cout << endl;
+    }
 
     getline(cin, freqs);
     getline(cin, freqs);
@@ -91,11 +98,18 @@ int main(int argc, char **argv)
             {
                 if(lc%(m*n+4) == 0)
                 {
-                    qnode temp = qnode(sline, count++, m, n);
-                    nqueue.push(temp);
-                    ihash = nhash.insert(temp);
-//                    cout << "Initial Insert:\n";
-                    //temp.print_clean();
+                    if(lim < 0 || lim == count)
+                    {
+                        single = qnode(sline, count, m, n);
+                        nqueue.push(single);
+                        ihash = nhash.insert(single);
+                        if(verbose && lim >= 0)
+                        {
+                            cout << "!Initial Insert:\n";
+                            single.print_clean_comment();
+                        }
+                    }
+                    count++;
                 }
                 lc++;
             }
@@ -107,6 +121,9 @@ int main(int argc, char **argv)
     }
 
     //-------- Read canonical permutations
+    int debug_count = 0;
+    int debug_insert = 0;
+
     while(getline(cin, fline) && curr >= 0)
     {
         if(verbose) cout << "!Opening File: " << fline << endl;
@@ -119,9 +136,24 @@ int main(int argc, char **argv)
         {
             while(getline(fhandle, sline))
             {
-                vec.push_back( cform(sline, m, n) );
-				cform ttemp = cform(sline, m, n);
-				//ttemp.print_clean(m,n);
+                //Then this is the newer version of input files that distinguish
+                //which canonical form they came from.
+                if(sline.length() < m*n)
+                {
+                    cstart.push_back(debug_count);
+                }
+                else
+                {
+                    debug_count++;
+                    cform ttemp = cform(sline, m, n);
+                    //ttemp.print_clean(m,n);
+
+                    if( lim < 0 || (lim >= 0 && !single.overlap_check(ttemp)) )
+                    {
+                        debug_insert++;
+                        vec.push_back(ttemp);
+                    }
+                }
             }
             sort(vec.begin(), vec.end());
             if(verbose) cout << "!Insert Forms " << curr << " " << vec.size() << endl;
@@ -134,12 +166,15 @@ int main(int argc, char **argv)
             //return 1;
         }
     }
-    
+
+    if(verbose) cout << "!DEBUG INSERTS: " << debug_insert << "/" << debug_count << endl;
     if(verbose) cout << "!Queue Size: " << nqueue.size() << endl;
     int counter_count = 0;
     int valid_count = 0;
     int insert_count = 0;
-    //int last = 0;
+    int last_counter = 0;
+    int last = 0;
+    int bad_full = 0;
     // Start popping the queue and inserting canonical forms
     while( !nqueue.empty() )
     {
@@ -147,14 +182,23 @@ int main(int argc, char **argv)
         nqueue.pop();
 
         //If it's the second to last insertion we can do the trivial insertion as well.
-        bool last_insert = (curr.get_next_freq() == (freqs.size() - 1));
+        bool last_insert = false;
+        if(curr.get_next_freq() == (freqs.size() - 2))
+        {
+            last_insert = true;
+            last_counter++;
+        }
 
         //Get the vector of canonical forms that have the same number of frequencies needed
         //by the current qnode
         int next_freq = freqs[curr.get_next_freq()] - '0' - 1;
         vector<cform> curr_forms = forms.at(next_freq);
+
+        //If we're limiting values then we want to skip frequencies that we know won't work.
+        int skip = ((lim > 0) && (next_freq == 0)) ? cstart[lim] : 0;
+
         
-        for(int i=0; i<curr_forms.size(); i++)
+        for(int i=skip; i<curr_forms.size(); i++)
         {
             //insert sets valid to false if the cform cannot be inserted
             bool valid = true;
@@ -182,15 +226,19 @@ int main(int argc, char **argv)
                         nqueue.push( temp );
                     }
                 }
+                //Else it is full but not a counter example
+                else
+                {
+                    bad_full++;
+                }
             }
 
-			/*
             if(verbose && insert_count % 100 == 0 && insert_count != last)
             {
                 last = insert_count;
-                if(verbose) cout << "!Valid: " << valid_count << "\tInsert: " << insert_count << endl;
+                if(verbose) cout << "!Valid: " << valid_count << "\tInsert: " << insert_count;
+                if(verbose) cout << "\tLast Insertions: " << last_counter << " (" << bad_full << ")" << endl;
             }
-			*/
         }
     }
 

@@ -167,15 +167,14 @@ class qnode
         //instead of doing all of those steps again!
         if(valid && last)
         {
-            next_val++;
-            next_freq++;
             for(int i=0; i<m*n; i++)
             {
                 if(new_mat[i] <= m*n)
                 {
-                    new_mat[i] = next_val;
+                    new_mat[i] = next_val+1;
                 }
             }
+            return qnode(new_mat, start, m, n, next_val+2, next_freq+2);
         }
 
         return qnode(new_mat, start, m, n, next_val+1, next_freq+1);
@@ -189,6 +188,21 @@ class qnode
     void update_trans()
     {
         trans = trans_count(matrix, m, n);
+    }
+
+    //  Tests if there is any overlap between a qnode and cform insertion.
+    //  This is useful for eliminating insertions that can never happen.
+    
+    bool overlap_check(cform cf)
+    {
+        vector<int> cpos = cf.get_pos();
+
+        for(int i=0; i<cpos.size(); i++)
+        {
+            if(matrix[cpos[i]] > m*n) return true;
+        }
+
+        return false;
     }
 
 	//	We want our matrices to be processed in a top-left heavy
@@ -226,6 +240,23 @@ class qnode
     {
         for(int i=0; i<m; i++)
         {
+            for(int j=0; j<n; j++)
+            {
+                if(matrix[i*n + j] <= m*n)
+                    printf("%c%c ", 'X', 'X');//cout << matrix[i*n + j] << " ";
+                else
+                    printf("%02d ", matrix[i*n + j] - 2*m*n + 1); //cout << (matrix[i*n + j]-2*m*n + 1) << " ";
+            }
+            cout << endl;
+        }
+    }
+
+    //Prints the matrix as above but commented for ignoring
+    void print_clean_comment() const
+    {
+        for(int i=0; i<m; i++)
+        {
+            cout << "!";
             for(int j=0; j<n; j++)
             {
                 if(matrix[i*n + j] <= m*n)

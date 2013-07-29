@@ -9,6 +9,7 @@
  */
 
 #include <iostream>
+#include <algorithm>
 #include <vector>
 #include <list>
 
@@ -83,19 +84,22 @@ int main(int argc, char **argv)
             while(next_permutation(curr_cols.begin(), curr_cols.end()));
         }
         while(next_permutation(curr_rows.begin(), curr_rows.end()));
+
+        cout << v << endl;
+        uniques.sort();
+        uniques.unique();
+        for (list<string>::iterator i=uniques.begin(); i != uniques.end(); ++i)
+        {
+            cout << *i << endl;
+        }
+        uniques.clear();
     }
 
     //cout << "Total: " << uniques.size() << endl;
 
-    uniques.sort();
-    uniques.unique();
 
     //cout << "Unique: " << uniques.size() << endl;
 
-    for (list<string>::iterator i=uniques.begin(); i != uniques.end(); ++i)
-    {
-        cout << *i << endl;
-    }
 
     return 0;   
 }

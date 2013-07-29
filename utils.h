@@ -18,6 +18,50 @@ using namespace std;
 
 #define NOP 999 
 
+//Checks if there is a transversal at all
+bool trans_check(const vector<int> matrix, const int m, const int n)
+{
+    vector<int> vec;
+
+    //Fill permutation vector
+    for(int i=0; i<m; i++)
+    {
+        vec.push_back(i);
+    }
+    for(int i=m; i<n; i++)
+    {
+        vec.push_back(NOP);    
+    }
+
+    do
+    {
+        vector<int> check;
+        for( int i = 0; i < vec.size(); i++ )
+        {
+            //Ignore columns with NOP values
+            if(vec[i] != NOP)
+            {
+                check.push_back(matrix[vec[i]*n + i]);
+            }
+        }
+
+        //Sort the values from 'a'
+        sort(check.begin(), check.end());
+        
+        //If any of the values are the same it isn't a transversal
+        bool same = false;
+        for( int i = 0; i < check.size()-1 && !same; i++ )
+        {
+            if( check[i] == check[i+1] ) same = true;
+        }
+        
+        if(!same) return true;
+    } 
+    while(next_permutation(vec.begin(), vec.end()));
+    
+    return false;
+}
+
 //Count traversals
 int trans_count(const vector<int> matrix, const int m, const int n)
 {
