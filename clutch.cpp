@@ -30,10 +30,8 @@
  *
  */
 
-#ifdef DEBIAN
-#include <boost/timer/timer.hpp>
-#endif
-
+#include <list>
+#include <boost/timer.hpp>
 #include <boost/unordered_set.hpp>
 #include <iostream>
 #include <fstream>
@@ -46,21 +44,19 @@ using namespace std;
 
 int main(int argc, char **argv)
 {
-#ifdef DEBIAN
-	cout << "!Timer Started." << endl;
-	boost::timer::auto_cpu_timer t_dot;
-#endif
+	//cout << "!Timer Started." << endl;
+	//boost::timer::auto_cpu_timer t_dot;
 
     bool verbose = true;
     bool dreadly = true;
     int m, n, f, lim;
     qnode single;
-    vector<int> cstart;
+    vector< vector<int> > cstart;
     string fline, freqs, initial;
     vector< vector<cform> > forms;
 
     //priority_queue< qnode, vector<qnode>, less<vector<qnode>::value_type> > nqueue;
-    vector<qnode> nqueue;
+    list<qnode> nqueue;
     boost::unordered_set< qnode, boost::hash<qnode> > nhash;
     pair< boost::unordered_set<qnode>::iterator, bool> ihash;
     
@@ -68,6 +64,8 @@ int main(int argc, char **argv)
     //--------- Reading data from input files
     cin >> m >> n >> f >> lim;
     forms.resize(f);
+    cstart.resize(f);
+
     if(verbose)
     {
         cout << "!m n f: " << m << " " << n << " " << f;
@@ -104,7 +102,7 @@ int main(int argc, char **argv)
                         if(lim >= 0) starts[freqs[0] - '0' - 1] = lim;
 
                         single = qnode(sline, starts, m, n);
-                        nqueue.push_back(single);
+                        nqueue.push_front(single);
                         ihash = nhash.insert(single);
                         if(verbose && lim >= 0)
                         {
@@ -129,6 +127,7 @@ int main(int argc, char **argv)
 
     while(getline(cin, fline) && curr >= 0)
     {
+        int c_count = 0;
         if(verbose) cout << "!Opening File: " << fline << endl;
         ifstream fhandle;
         string sline;
@@ -143,7 +142,8 @@ int main(int argc, char **argv)
                 //which canonical form they came from.
                 if(sline.length() < m*n)
                 {
-                    cstart.push_back(debug_count);
+                    cstart[curr-1].push_back(debug_insert);
+                    cout << "CSTART " << c_count << " UP: " << cstart[curr-1].at(c_count++) << endl;
                 }
                 else
                 {
@@ -171,7 +171,7 @@ int main(int argc, char **argv)
     }
 
     if(verbose) cout << "!DEBUG INSERTS: " << debug_insert << "/" << debug_count << endl;
-    if(verbose) cout << "!Queue Size: " << nqueue.size() << endl;
+    //if(verbose) cout << "!Queue Size: " << (lim <= 0 ? count : "1") << endl;
     int counter_count = 0;
     int valid_count = 0;
     int insert_count = 0;
@@ -182,11 +182,11 @@ int main(int argc, char **argv)
     // Start popping the queue and inserting canonical forms
     while( !nqueue.empty() )
     {
-        vector<qnode> breadth;
+        list<qnode> breadth;
         while( !nqueue.empty() )
         {
-            qnode curr = nqueue.back();
-            nqueue.pop_back();
+            qnode curr = nqueue.front();
+            nqueue.pop_front();
 
             //If it's the second to last insertion we can do the trivial insertion as well.
             bool last_insert = false;
@@ -202,10 +202,14 @@ int main(int argc, char **argv)
             vector<cform> curr_forms = forms.at(next_freq);
 
             //If we're limiting values then we want to skip frequencies that we know won't work.
-            int skip = curr.get_skip(next_freq); //((lim > 0) && (next_freq == 0)) ? cstart[lim] : 0;
+            int skip = cstart[next_freq].at( curr.get_skip(next_freq) ); //((lim > 0) && (next_freq == 0)) ? cstart[lim] : 0;
             
             for(int i=skip; i<curr_forms.size(); i++)
             {
+                //Check if the skip increases yet
+                if(cstart[next_freq].size() > curr.get_skip(next_freq)+1 && i > cstart[next_freq].at( curr.get_skip(next_freq)+1 ))
+                    curr.inc_skip(next_freq);
+
                 //insert sets valid to false if the cform cannot be inserted
                 bool valid = true;
                 qnode temp = curr.insert(curr_forms[i], valid, last_insert);
@@ -225,12 +229,11 @@ int main(int argc, char **argv)
                     else if(temp.get_next_freq() < freqs.size())
                     {
                         valid_count++;
-                        //Matrix is not full!
                         ihash = nhash.insert(temp);
                         if(ihash.second)
                         {
                             insert_count++;
-                            breadth.push_back( temp );
+                            breadth.push_front( temp );
                         }
                     }
                     //Else it is full but not a counter example
@@ -240,17 +243,19 @@ int main(int argc, char **argv)
                     }
                 }
 
-                if(verbose && insert_count % 500 == 0 && insert_count != last)
+                if(verbose && insert_count % 1000 == 0 && insert_count != last)
                 {
                     last = insert_count;
                     if(verbose) cout << "!Valid: " << valid_count << "\tInsert: " << insert_count;
-                    if(verbose) cout << "\tLast Insertions: " << last_counter << " (" << bad_full << ")" << endl;
+                    if(verbose) cout << "\tLast Insertions: " << last_counter << " (" << bad_full << ") Left: " << nqueue.size() << endl;
                 }
             }
         }
         nqueue = breadth;
-        cout << "!Round " << round << " Finished. New Size = " << nqueue.size() << endl;
-        round++;
+        cout << "!Round " << round++ << " Finished. New Size = " << nqueue.size() << endl;
+
+        //The hash can't possibly be of any use to us anymore since all of the next values will be bigger. We can safely empty it now
+        nhash.clear();
     }
 
     if(verbose) cout << "!Queue Cleared." << endl;

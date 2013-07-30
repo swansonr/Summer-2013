@@ -232,6 +232,11 @@ class qnode
 		return result;
 	}
 
+    void inc_skip(const int i)
+    {
+        starts[i]++;
+    }
+
     int get_skip(const int i) const
     {
         return starts[i];
