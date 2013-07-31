@@ -37,10 +37,123 @@
 #include <fstream>
 #include <vector>
 #include <queue>
+#include <string>
+#include <stdlib.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <errno.h>
+#include <sys/wait.h>
 #include "qnode.h"
 #include "cform.h"
 
 using namespace std;
+
+list<qnode> nauty_cleanup(list<qnode> input, string initial, const vector<int> starts, const int m, const int n)
+{
+    list<qnode> output;
+    const char *infile   = "temp_clutch_file_0.txt";
+    const char *outfile1 = "temp_clutch_file_1.txt";
+    const char *outfile2 = "temp_clutch_file_2.txt";
+    ofstream tempf;
+
+    //--------- Create input file
+    tempf.open(infile, ios::trunc);
+    if(tempf.is_open())
+    {
+        tempf << "!Temporary Contents of breadth";
+
+        //Print the contents of input to a temporary file
+        for(list<qnode>::iterator it = input.begin(); it != input.end(); it++)
+        {
+            tempf << (*it).string_dread(initial, 0);
+        }
+
+        tempf.close();
+    }
+    else
+    {
+        fprintf(stderr, "!Error: Unable to open initial nauty files.");
+        return input;
+    }
+
+    pid_t pid = fork();
+    if(pid==0)  //Child Process
+    {
+        cout << "Nauty Step 1." << endl;
+        execl("nauty/dretog", "nauty/dretog", infile, outfile1, (char *)0);
+        exit(0);
+    }
+    else        //Parent Process
+    {
+        wait(NULL);
+
+        pid = fork();
+        if(pid==0)      //Child Again
+        {
+            cout << "Nauty Step 2." << endl;
+            execl("nauty/shortg", "nauty/shortg", outfile1, outfile2, "-k", "-v", (char *)0);
+            exit(0);
+        }
+        else            //Parent Again
+        {
+            wait(NULL);
+
+            pid = fork();
+            if(pid==0)      //Last Child
+            {
+                cout << "Nauty Step 3." << endl;
+                execl("nauty/listg", "nauty/listg", outfile2, infile, "-o1", "-a", (char *)0);
+                exit(0);
+            }
+            else
+            {
+                wait(NULL);
+            }
+        }
+    }
+
+    //Open infile
+    ifstream readf;
+    readf.open(infile, ios::in);
+    if(readf.is_open())
+    {
+        cout << "!Reading nautified file... " << infile << endl;
+        string line; 
+        getline(readf, line);   //Initial empty line
+        while(readf.good())
+        {
+            vector<int> matrix(m*n);
+            int curr = 2*m*n;
+            for(int i=0; i<m*n+1 && readf.good(); i++)
+            {
+                getline(readf, line);
+            }
+
+            getline(readf, line);
+            while(line.compare("") != 0)
+            {
+                //cout << line << endl;
+                for(int i=0; i<line.size(); i++)
+                {
+                    if(line[i] != '0') matrix[i] = curr;
+                }
+                curr++;
+                getline(readf, line);
+            }
+                    
+            qnode temp = qnode(matrix, starts, m, n);
+            output.push_front(temp);
+        }
+    }
+    else
+    {
+        fprintf(stderr, "!Error: Unable to open completed nauty files.");
+        return input;
+    }
+
+    readf.close();
+    return output;
+}
 
 int main(int argc, char **argv)
 {
@@ -49,6 +162,7 @@ int main(int argc, char **argv)
 
     bool verbose = true;
     bool dreadly = true;
+    bool nautied = true;
     int m, n, f, lim;
     qnode single;
     vector< vector<int> > cstart;
@@ -60,11 +174,14 @@ int main(int argc, char **argv)
     boost::unordered_set< qnode, boost::hash<qnode> > nhash;
     pair< boost::unordered_set<qnode>::iterator, bool> ihash;
     
-
     //--------- Reading data from input files
     cin >> m >> n >> f >> lim;
+
     forms.resize(f);
     cstart.resize(f);
+
+    int curr_freq = 1;
+    int next_value = 2*m*n+1;
 
     if(verbose)
     {
@@ -81,6 +198,7 @@ int main(int argc, char **argv)
 
     //-------- Reading canonical forms
     int curr = f;
+    vector<int> starts(freqs[0] - '0');
     if(getline(cin, fline))
     {
         if(verbose) cout << "!Opening File: " << fline << endl;
@@ -98,7 +216,6 @@ int main(int argc, char **argv)
                 {
                     if(lim < 0 || lim == count)
                     {
-                        vector<int> starts(freqs[0] - '0');
                         if(lim >= 0) starts[freqs[0] - '0' - 1] = lim;
 
                         single = qnode(sline, starts, m, n);
@@ -127,7 +244,6 @@ int main(int argc, char **argv)
 
     while(getline(cin, fline) && curr >= 0)
     {
-        int c_count = 0;
         if(verbose) cout << "!Opening File: " << fline << endl;
         ifstream fhandle;
         string sline;
@@ -143,7 +259,6 @@ int main(int argc, char **argv)
                 if(sline.length() < m*n)
                 {
                     cstart[curr-1].push_back(debug_insert);
-                    cout << "CSTART " << c_count << " UP: " << cstart[curr-1].at(c_count++) << endl;
                 }
                 else
                 {
@@ -183,27 +298,28 @@ int main(int argc, char **argv)
     while( !nqueue.empty() )
     {
         list<qnode> breadth;
+        
+        //If it's the second to last insertion we can do the trivial insertion as well.
+        bool last_insert = false;
+        if(curr_freq == (freqs.size() - 2))
+        {
+            last_insert = true;
+            last_counter++;
+        }
+
+        //Get the vector of canonical forms that have the same number of frequencies needed
+        //by the current qnode
+        int next_freq = freqs[curr_freq] - '0' - 1;
+        vector<cform> curr_forms = forms.at(next_freq);
+
         while( !nqueue.empty() )
         {
             qnode curr = nqueue.front();
             nqueue.pop_front();
 
-            //If it's the second to last insertion we can do the trivial insertion as well.
-            bool last_insert = false;
-            if(curr.get_next_freq() == (freqs.size() - 2))
-            {
-                last_insert = true;
-                last_counter++;
-            }
-
-            //Get the vector of canonical forms that have the same number of frequencies needed
-            //by the current qnode
-            int next_freq = freqs[curr.get_next_freq()] - '0' - 1;
-            vector<cform> curr_forms = forms.at(next_freq);
-
             //If we're limiting values then we want to skip frequencies that we know won't work.
             int skip = cstart[next_freq].at( curr.get_skip(next_freq) ); //((lim > 0) && (next_freq == 0)) ? cstart[lim] : 0;
-            
+
             for(int i=skip; i<curr_forms.size(); i++)
             {
                 //Check if the skip increases yet
@@ -212,7 +328,7 @@ int main(int argc, char **argv)
 
                 //insert sets valid to false if the cform cannot be inserted
                 bool valid = true;
-                qnode temp = curr.insert(curr_forms[i], valid, last_insert);
+                qnode temp = curr.insert(curr_forms[i], valid, next_value, last_insert);
                 
                 if(valid)
                 {
@@ -226,7 +342,7 @@ int main(int argc, char **argv)
                         //return EXIT_SUCCESS;
                     }
                     //Check if the matrix is full or not
-                    else if(temp.get_next_freq() < freqs.size())
+                    else if(!last_insert)
                     {
                         valid_count++;
                         ihash = nhash.insert(temp);
@@ -251,11 +367,24 @@ int main(int argc, char **argv)
                 }
             }
         }
+
+        //Clean up using nauty
+        if(nautied && !last_insert)
+        {
+            cout << "!Calling nauty to cleanup..." << breadth.size() << endl;
+            breadth = nauty_cleanup(breadth, initial, starts, m, n);
+            cout << "!nauty completed. " << breadth.size() << endl;
+        }
+
         nqueue = breadth;
         cout << "!Round " << round++ << " Finished. New Size = " << nqueue.size() << endl;
 
         //The hash can't possibly be of any use to us anymore since all of the next values will be bigger. We can safely empty it now
         nhash.clear();
+
+        //Increment to the next frequency
+        curr_freq++;
+        next_value++;
     }
 
     if(verbose) cout << "!Queue Cleared." << endl;
@@ -263,3 +392,4 @@ int main(int argc, char **argv)
 
     return 0;
 }
+

@@ -15,9 +15,6 @@
  *  vector<int> starts  The canonical form in which the matrix was started (will be used to
  *                      eliminate duplicate matrices/qnodes.)
  *
- *  int next_val        The next values from [2*m*n, ...] to be placed in the subsequent
- *                      qnode based on this one.
- *
  *  int m, n            represent the number of rows and columns respectively.
  *
  */
@@ -33,15 +30,10 @@ using namespace std;
 
 class qnode
 {
-    //int *matrix;
     vector<int> matrix;
     vector<int> starts;
     bool trans;
-    //int trans;
-    //int start;
 	int weight;
-    int next_val;
-    int next_freq;
     int m;
     int n;
 
@@ -50,27 +42,22 @@ class qnode
     qnode()
     {
         trans = true;
-        //start = 0;
 		weight = 0;
-        next_freq = 0;
         m = 0;
         n = 0;
-        next_val = 0;
     }
 
-    qnode(string line, vector<int> s, int mm, int nn, int nf=1)
+    qnode(string line, vector<int> s, int mm, int nn)
     {
         starts = s;
         m = mm;
         n = nn;
-        next_val = 2*m*n;
-        next_freq = nf;
 
         for(int i=0; i<m*n && i<line.size(); i++)
         {
             if(line[i] != '0')
             {
-                matrix.push_back(next_val);
+                matrix.push_back(2*m*n);
             }
             else
             {
@@ -81,17 +68,14 @@ class qnode
         //trans = trans_count(matrix, m, n);
         trans = trans_check(matrix, m, n);
 		weight = calc_weight();
-        next_val++;
     }
 
-    qnode(vector<int> mat, vector<int> s, int mm, int nn, int nv, int nf=1)
+    qnode(vector<int> mat, vector<int> s, int mm, int nn)
     {
         matrix = mat;
         starts = s;
         m = mm;
         n = nn;
-        next_freq = nf;
-        next_val = nv;
         trans = trans_check(matrix, m, n);
 		weight = calc_weight();
     }
@@ -123,7 +107,7 @@ class qnode
 
 	//	Attempts to insert a canonical form into the matrix.
 
-    qnode insert(cform cf, bool &valid, bool last=false)
+    qnode insert(cform cf, bool &valid, int val, bool last=false)
     {
         vector<int> new_mat = matrix;
         //vector<int> cf_mat = cf.get_matrix();
@@ -138,7 +122,7 @@ class qnode
             if(cf_mat[i] != 0)
             {
                 if(matrix[i] <= m*n)
-                    new_mat[i] = next_val;
+                    new_mat[i] = val;
                 else
                 {
                     valid = false;
@@ -147,11 +131,11 @@ class qnode
             }
         }
 		*/
-		
+
 		for(int i=0; i<cf_pos.size(); i++)
 		{
 			if(matrix[ cf_pos[i] ] <= m*n)
-				new_mat[ cf_pos[i] ] = next_val;
+				new_mat[ cf_pos[i] ] = val;
 			else
 				valid = false;
 		}
@@ -171,13 +155,13 @@ class qnode
             {
                 if(new_mat[i] <= m*n)
                 {
-                    new_mat[i] = next_val+1;
+                    new_mat[i] = val+1;
                 }
             }
-            return qnode(new_mat, starts, m, n, next_val+2, next_freq+2);
+            //return qnode(new_mat, starts, m, n);
         }
 
-        return qnode(new_mat, starts, m, n, next_val+1, next_freq+1);
+        return qnode(new_mat, starts, m, n);
     }
 
     bool has_trans() const
@@ -247,11 +231,6 @@ class qnode
 		return weight;
 	}
 
-    int get_next_freq()
-    {
-        return next_freq;
-    }
-
     //Prints the matrix in a manner easily read by the human eye
     void print_clean() const
     {
@@ -293,6 +272,46 @@ class qnode
         printf("\n");
     }
 
+    string string_dread(const string initial, const int val) const
+    {
+        string output;
+        vector< vector<int> > vals;
+        vals.resize(m*n);
+        char buff[100];
+        int count = 0;
+
+        for(int i=0; i<m*n; i++)
+        {
+            if(matrix[i]-2*m*n+1 > count) count = matrix[i]-2*m*n+1;
+            if(matrix[i] > m*n)
+            {
+                (vals.at( matrix[i] - 2*m*n + 1)).push_back(i);
+            }
+        }
+
+        sprintf(buff, "\nn=%d g\n", (m*n + count));
+        output = buff;
+        output += initial;
+
+        for(int i=1; i<=count; i++)
+        {
+            //cout << (m*n + i - 1) << ": ";
+            sprintf(buff, "%d: ", (m*n + i - 1));
+            output += buff;
+
+            for(int j=0; j< vals[i].size(); j++)
+            {
+                //output += (vals.at(i)).at(j);
+                //output += " ";
+                sprintf(buff, "%d ", (vals.at(i)).at(j));
+                output += buff;
+            }
+            output += ";\n";
+        }
+
+        return output;
+    }
+
 	//Prints the matrix in the dreadnaut format used by nauty
     void print_dread(const string initial, const int val) const
     {
@@ -309,6 +328,7 @@ class qnode
             }
             else
             {
+                //The matrix contains un-occupied spaces
                 return;
             }
         }
@@ -369,10 +389,8 @@ class qnode
     vector<int> get_hash() const
     {
         int next = 1;
-        vector<int> res;
-        vector<int> vals;
-
-        vals.resize(m*n*3);
+        vector<int> res(m*n);
+        vector<int> vals(m*n*3);
 
         for(int i=0; i<m*n; i++)
         {
