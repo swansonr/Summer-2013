@@ -46,74 +46,39 @@
 #include "qnode.h"
 #include "cform.h"
 
+#define INFILE "temp_clutch_in.txt"
+#define OUTFILE "temp_clutch_out.txt"
+
 using namespace std;
 
-list<qnode> nauty_cleanup(list<qnode> input, string initial, const vector<int> starts, const int m, const int n, const int round)
+list<qnode> nauty_cleanup(const vector<int> starts, const int m, const int n)
 {
     list<qnode> output;
-    const char *infile   = "temp_clutch_file_0.txt";
-    //const char *outfile1 = "temp_clutch_file_1.txt";
-    const char *outfile2 = "temp_clutch_file_2.txt";
+    const char *infile   = INFILE;
+    const char *outfile = OUTFILE;
     ofstream tempf;
 
-    //--------- Create input file
-    tempf.open(infile, ios::trunc);
-    if(tempf.is_open())
-    {
-        //Print the contents of input to a temporary file
-        //for(list<qnode>::iterator it = input.begin(); it != input.end(); it++)
-        //{
-            //tempf << (*it).string_dread(initial, 0);
-         //   tempf << (*it).string_g6(round);
-        //}
-        while( !input.empty() )
-        {
-            tempf << (input.front()).string_g6(round);
-            input.pop_front();
-        }
-
-        input.clear();
-        tempf.close();
-    }
-    else
-    {
-        fprintf(stderr, "!Error: Unable to open initial nauty files.");
-        return input;
-    }
-
     pid_t pid = fork();
-    if(pid==0)  //Child Process
+    if(pid==0)      //Child Again
     {
-        cout << "Nauty Step 1." << endl;
-        //execl("nauty/dretog", "nauty/dretog", infile, outfile1, (char *)0);
+        cout << "!Nauty Step 1." << endl;
+        execl("nauty/shortg", "nauty/shortg", infile, outfile, "-k", "-v", (char *)0);
         exit(0);
     }
-    else        //Parent Process
+    else            //Parent Again
     {
         wait(NULL);
 
         pid = fork();
-        if(pid==0)      //Child Again
+        if(pid==0)      //Last Child
         {
-            cout << "Nauty Step 2." << endl;
-            execl("nauty/shortg", "nauty/shortg", infile, outfile2, "-k", "-v", (char *)0);
+            cout << "!Nauty Step 2." << endl;
+            execl("nauty/listg", "nauty/listg", outfile, infile, "-o1", "-a", (char *)0);
             exit(0);
         }
-        else            //Parent Again
+        else
         {
             wait(NULL);
-
-            pid = fork();
-            if(pid==0)      //Last Child
-            {
-                cout << "Nauty Step 3." << endl;
-                execl("nauty/listg", "nauty/listg", outfile2, infile, "-o1", "-a", (char *)0);
-                exit(0);
-            }
-            else
-            {
-                wait(NULL);
-            }
         }
     }
 
@@ -151,14 +116,13 @@ list<qnode> nauty_cleanup(list<qnode> input, string initial, const vector<int> s
             qnode temp = qnode(matrix, starts, m, n);
             output.push_front(temp);
         }
+        readf.close();
     }
     else
     {
         fprintf(stderr, "!Error: Unable to open completed nauty files.");
-        return input;
     }
 
-    readf.close();
     return output;
 }
 
@@ -169,7 +133,6 @@ int main(int argc, char **argv)
 
     bool verbose = true;
     bool dreadly = true;
-    bool nautied = true;
     int m, n, f, lim;
     qnode single;
     vector< vector<int> > cstart;
@@ -304,7 +267,15 @@ int main(int argc, char **argv)
     // Start popping the queue and inserting canonical forms
     while( !nqueue.empty() )
     {
-        list<qnode> breadth;
+        ofstream tempf;
+
+        //Create input file
+        tempf.open(INFILE, ios::trunc);
+        if(!tempf.is_open())
+        {
+            fprintf(stderr, "!Error: Unable to open initial nauty files.");
+            return 0;
+        }
         
         //If it's the second to last insertion we can do the trivial insertion as well.
         bool last_insert = false;
@@ -358,7 +329,7 @@ int main(int argc, char **argv)
                         if(ihash.second)
                         {
                             insert_count++;
-                            breadth.push_front( temp );
+                            tempf << temp.string_g6(round+1);
                         }
                     }
                     //Else it is full but not a counter example
@@ -378,16 +349,14 @@ int main(int argc, char **argv)
         }
 
         //Clean up using nauty
-        if(nautied && !last_insert)
+        if(!last_insert)
         {
-            cout << "!Calling nauty to cleanup on round " << round << " ..." << breadth.size() << endl;
-            breadth = nauty_cleanup(breadth, initial, starts, m, n, round+1);
-            cout << "!nauty completed. " << breadth.size() << endl;
+            cout << "!Calling nauty to cleanup on round " << round << " ..." << endl;
+            nqueue.clear();
+            nqueue = nauty_cleanup(starts, m, n);
+            cout << "!nauty completed. " << nqueue.size() << endl;
         }
 
-        nqueue.clear();
-        nqueue = breadth;
-        breadth.clear();
         cout << "!Round " << round++ << " Finished. New Size = " << nqueue.size() << endl;
 
         //The hash can't possibly be of any use to us anymore since all of the next values will be bigger. We can safely empty it now
