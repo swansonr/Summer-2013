@@ -124,11 +124,13 @@ list<qnode> nauty_cleanup(list<qnode> input, string initial, const vector<int> s
         {
             vector<int> matrix(m*n);
             int curr = 2*m*n;
-            for(int i=0; i<m*n+1 && readf.good(); i++)
+            for(int i=0; i<m*n && readf.good(); i++)
             {
                 getline(readf, line);
+                matrix[i] = i+1;
             }
 
+            getline(readf, line);
             getline(readf, line);
             while(line.compare("") != 0)
             {
@@ -359,7 +361,7 @@ int main(int argc, char **argv)
                     }
                 }
 
-                if(verbose && insert_count % 1000 == 0 && insert_count != last)
+                if(verbose && insert_count % 100000 == 0 && insert_count != last)
                 {
                     last = insert_count;
                     if(verbose) cout << "!Valid: " << valid_count << "\tInsert: " << insert_count;
