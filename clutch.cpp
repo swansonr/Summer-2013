@@ -54,15 +54,13 @@ using namespace std;
 list<qnode> nauty_cleanup(const vector<int> starts, const int m, const int n)
 {
     list<qnode> output;
-    const char *infile   = INFILE;
-    const char *outfile = OUTFILE;
     ofstream tempf;
 
     pid_t pid = fork();
     if(pid==0)      //Child Again
     {
         cout << "!Nauty Step 1." << endl;
-        execl("nauty/shortg", "nauty/shortg", infile, outfile, "-k", "-v", (char *)0);
+        execl("nauty/shortg", "nauty/shortg", INFILE, OUTFILE, "-k", "-v", (char *)0);
         exit(0);
     }
     else            //Parent Again
@@ -73,7 +71,7 @@ list<qnode> nauty_cleanup(const vector<int> starts, const int m, const int n)
         if(pid==0)      //Last Child
         {
             cout << "!Nauty Step 2." << endl;
-            execl("nauty/listg", "nauty/listg", outfile, infile, "-o1", "-a", (char *)0);
+            execl("nauty/listg", "nauty/listg", OUTFILE, INFILE, "-o1", "-a", (char *)0);
             exit(0);
         }
         else
@@ -82,12 +80,13 @@ list<qnode> nauty_cleanup(const vector<int> starts, const int m, const int n)
         }
     }
 
-    //Open infile
+    //Open INFILE
     ifstream readf;
-    readf.open(infile, ios::in);
+    readf.open(INFILE, ios::in);
     if(readf.is_open())
     {
-        cout << "!Reading nautified file... " << infile << endl;
+        int counter = 1;
+        cout << "!Reading nautified file... " << INFILE << endl;
         string line; 
         getline(readf, line);   //Initial empty line
         while(readf.good())
@@ -115,6 +114,9 @@ list<qnode> nauty_cleanup(const vector<int> starts, const int m, const int n)
                     
             qnode temp = qnode(matrix, starts, m, n);
             output.push_front(temp);
+
+            if(counter%1000==0) cout << "!\tCount: " << counter << endl;
+            counter++;
         }
         readf.close();
     }
@@ -124,6 +126,7 @@ list<qnode> nauty_cleanup(const vector<int> starts, const int m, const int n)
     }
 
     return output;
+
 }
 
 int main(int argc, char **argv)
