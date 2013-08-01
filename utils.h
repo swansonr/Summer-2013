@@ -17,6 +17,7 @@ using namespace std;
 #include "qnode.h"
 
 #define NOP 999 
+#define G6OFF 63
 
 //Checks if there is a transversal at all
 bool trans_check(const vector<int> matrix, const int m, const int n)

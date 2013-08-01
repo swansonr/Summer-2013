@@ -272,6 +272,88 @@ class qnode
         printf("\n");
     }
 
+    string string_g6(const int round) const
+    {
+        int g = m*n+round;            // Size of the graph we're making
+        vector<int> adj(g*g);       //Adjacency matrix
+        vector< vector<int> > vals(m*n);    
+        string result = "";
+
+        //Create the (top half) of the adjacency matrix:
+        //First the simple junk
+        for(int i=0; i<m*n; i++)
+        {
+            for(int j=(i%n)+1; j<n; j++)
+            {
+                adj[ ((i/n)*n + j) + i*g ]++;
+            }
+            for(int j=(i/n)*n + (i%n) + n; j<m*n; j+=n)
+            {
+                adj[ j + i*g ]++;
+            }
+        }
+
+        //Populate it with the actual values
+        for(int i=0; i<m; i++)
+        {
+            for(int j=0; j<n; j++)
+            {
+                if( matrix[i*m + j] > m*n ) adj[ (m*n + matrix[i*m+j] - 2*m*n) + (i*m + j)*g]++;
+            }
+        }
+
+        /*
+        cout << "INIT MATR" << endl;
+        print_matrix();
+
+        cout << "ADJ MAT" << endl;
+        for(int i=0; i<g; i++)
+        {
+            for(int j=0; j<g; j++)
+            {
+                cout << adj[i*g + j];
+            }
+            cout << endl;
+        }
+        cout << endl;
+        */
+
+        //Calculate the g6
+        result += (char)(g+G6OFF);    //R(x) = g + 63
+
+        int count = 1;
+        unsigned char out;
+
+        for(int i=1; i<g; i++)
+        {
+            for(int j=0; j<i; j++)
+            {
+                out |= adj[j*g + i];
+                if(count>0 && count%6 == 0)
+                {
+                    result += (char)(out+G6OFF);
+                    out &= 0;
+                }
+                else
+                {
+                    out = out << 1;
+                }
+
+                count++;
+            }
+        }
+
+        if(count%6 != 0)
+        {
+            out = out << (6 - (count%6));
+            result += (char)(out+G6OFF);
+        }
+
+        result += "\n";
+
+        return result;
+    }
+
     string string_dread(const string initial, const int val) const
     {
         string output;

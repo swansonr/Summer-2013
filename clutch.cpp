@@ -48,11 +48,11 @@
 
 using namespace std;
 
-list<qnode> nauty_cleanup(list<qnode> input, string initial, const vector<int> starts, const int m, const int n)
+list<qnode> nauty_cleanup(list<qnode> input, string initial, const vector<int> starts, const int m, const int n, const int round)
 {
     list<qnode> output;
     const char *infile   = "temp_clutch_file_0.txt";
-    const char *outfile1 = "temp_clutch_file_1.txt";
+    //const char *outfile1 = "temp_clutch_file_1.txt";
     const char *outfile2 = "temp_clutch_file_2.txt";
     ofstream tempf;
 
@@ -60,14 +60,19 @@ list<qnode> nauty_cleanup(list<qnode> input, string initial, const vector<int> s
     tempf.open(infile, ios::trunc);
     if(tempf.is_open())
     {
-        tempf << "!Temporary Contents of breadth";
-
         //Print the contents of input to a temporary file
-        for(list<qnode>::iterator it = input.begin(); it != input.end(); it++)
+        //for(list<qnode>::iterator it = input.begin(); it != input.end(); it++)
+        //{
+            //tempf << (*it).string_dread(initial, 0);
+         //   tempf << (*it).string_g6(round);
+        //}
+        while( !input.empty() )
         {
-            tempf << (*it).string_dread(initial, 0);
+            tempf << (input.front()).string_g6(round);
+            input.pop_front();
         }
 
+        input.clear();
         tempf.close();
     }
     else
@@ -80,7 +85,7 @@ list<qnode> nauty_cleanup(list<qnode> input, string initial, const vector<int> s
     if(pid==0)  //Child Process
     {
         cout << "Nauty Step 1." << endl;
-        execl("nauty/dretog", "nauty/dretog", infile, outfile1, (char *)0);
+        //execl("nauty/dretog", "nauty/dretog", infile, outfile1, (char *)0);
         exit(0);
     }
     else        //Parent Process
@@ -91,7 +96,7 @@ list<qnode> nauty_cleanup(list<qnode> input, string initial, const vector<int> s
         if(pid==0)      //Child Again
         {
             cout << "Nauty Step 2." << endl;
-            execl("nauty/shortg", "nauty/shortg", outfile1, outfile2, "-k", "-v", (char *)0);
+            execl("nauty/shortg", "nauty/shortg", infile, outfile2, "-k", "-v", (char *)0);
             exit(0);
         }
         else            //Parent Again
@@ -313,6 +318,8 @@ int main(int argc, char **argv)
         //by the current qnode
         int next_freq = freqs[curr_freq] - '0' - 1;
         vector<cform> curr_forms = forms.at(next_freq);
+        int skip = 0;
+        if(freqs[curr_freq] == freqs[0]) skip = lim;
 
         while( !nqueue.empty() )
         {
@@ -320,13 +327,13 @@ int main(int argc, char **argv)
             nqueue.pop_front();
 
             //If we're limiting values then we want to skip frequencies that we know won't work.
-            int skip = cstart[next_freq].at( curr.get_skip(next_freq) ); //((lim > 0) && (next_freq == 0)) ? cstart[lim] : 0;
+            //int skip = cstart[next_freq].at( curr.get_skip(next_freq) ); //((lim > 0) && (next_freq == 0)) ? cstart[lim] : 0;
 
             for(int i=skip; i<curr_forms.size(); i++)
             {
                 //Check if the skip increases yet
-                if(cstart[next_freq].size() > curr.get_skip(next_freq)+1 && i > cstart[next_freq].at( curr.get_skip(next_freq)+1 ))
-                    curr.inc_skip(next_freq);
+                //if(cstart[next_freq].size() > curr.get_skip(next_freq)+1 && i > cstart[next_freq].at( curr.get_skip(next_freq)+1 ))
+                    //curr.inc_skip(next_freq);
 
                 //insert sets valid to false if the cform cannot be inserted
                 bool valid = true;
@@ -373,12 +380,14 @@ int main(int argc, char **argv)
         //Clean up using nauty
         if(nautied && !last_insert)
         {
-            cout << "!Calling nauty to cleanup..." << breadth.size() << endl;
-            breadth = nauty_cleanup(breadth, initial, starts, m, n);
+            cout << "!Calling nauty to cleanup on round " << round << " ..." << breadth.size() << endl;
+            breadth = nauty_cleanup(breadth, initial, starts, m, n, round+1);
             cout << "!nauty completed. " << breadth.size() << endl;
         }
 
+        nqueue.clear();
         nqueue = breadth;
+        breadth.clear();
         cout << "!Round " << round++ << " Finished. New Size = " << nqueue.size() << endl;
 
         //The hash can't possibly be of any use to us anymore since all of the next values will be bigger. We can safely empty it now
