@@ -302,22 +302,6 @@ class qnode
             }
         }
 
-        /*
-        cout << "INIT MATR" << endl;
-        print_matrix();
-
-        cout << "ADJ MAT" << endl;
-        for(int i=0; i<g; i++)
-        {
-            for(int j=0; j<g; j++)
-            {
-                cout << adj[i*g + j];
-            }
-            cout << endl;
-        }
-        cout << endl;
-        */
-
         //Calculate the g6
         result += (char)(g+G6OFF);    //R(x) = g + 63
 
@@ -343,7 +327,7 @@ class qnode
             }
         }
 
-        if(count%6 != 0)
+        if(count%6 != 1)
         {
             out = out << (6 - (count%6));
             result += (char)(out+G6OFF);

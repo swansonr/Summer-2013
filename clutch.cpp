@@ -31,7 +31,7 @@
  */
 
 #include <list>
-#include <boost/timer.hpp>
+//#include <boost/timer.hpp>
 #include <boost/unordered_set.hpp>
 #include <iostream>
 #include <fstream>
@@ -54,7 +54,6 @@ using namespace std;
 list<qnode> nauty_cleanup(const vector<int> starts, const int m, const int n)
 {
     list<qnode> output;
-    ofstream tempf;
 
     pid_t pid = fork();
     if(pid==0)      //Child Again
@@ -294,7 +293,7 @@ int main(int argc, char **argv)
         vector<cform> curr_forms = forms.at(next_freq);
         int skip = 0;
         if(freqs[curr_freq] == freqs[0]) skip = lim;
-
+        
         while( !nqueue.empty() )
         {
             qnode curr = nqueue.front();
@@ -342,7 +341,7 @@ int main(int argc, char **argv)
                     }
                 }
 
-                if(verbose && insert_count % 100000 == 0 && insert_count != last)
+                if(verbose && insert_count % 1000000 == 0 && insert_count != last)
                 {
                     last = insert_count;
                     if(verbose) cout << "!Valid: " << valid_count << "\tInsert: " << insert_count;
@@ -362,12 +361,15 @@ int main(int argc, char **argv)
 
         cout << "!Round " << round++ << " Finished. New Size = " << nqueue.size() << endl;
 
-        //The hash can't possibly be of any use to us anymore since all of the next values will be bigger. We can safely empty it now
+        //The hash can't possibly be of any use to us anymore since all of the next values will be bigger.
+        //We can safely empty it now
         nhash.clear();
 
         //Increment to the next frequency
         curr_freq++;
         next_value++;
+
+        tempf.close();
     }
 
     if(verbose) cout << "!Queue Cleared." << endl;

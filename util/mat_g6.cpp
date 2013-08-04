@@ -5,26 +5,39 @@ using namespace std;
 
 int main(int argc, char **argv)
 {
+    bool debug = false;
+    bool good = true;
+
     vector<int> matrix;
-    int m = 4, n = 4;
+    int m = 5, n = 5;
     int g = m*n+3;
     
-    matrix.push_back(2*m*n);
-    matrix.push_back(2*m*n);
-    matrix.push_back(2*m*n);
-    matrix.push_back(2*m*n+2);
-    matrix.push_back(2*m*n);
-    matrix.push_back(1);
-    matrix.push_back(2);
-    matrix.push_back(2*m*n+1);
-    matrix.push_back(2*m*n+2);
-    matrix.push_back(2*m*n+2);
-    matrix.push_back(2*m*n+2);
+    matrix.push_back(50);
+    matrix.push_back(50);
     matrix.push_back(3);
-    matrix.push_back(2*m*n+1);
-    matrix.push_back(2*m*n+1);
-    matrix.push_back(2*m*n+1);
     matrix.push_back(4);
+    matrix.push_back(5);
+    matrix.push_back(50);
+    matrix.push_back(50);
+    matrix.push_back(8);
+    matrix.push_back(51);
+    matrix.push_back(51);
+    matrix.push_back(52);
+    matrix.push_back(52);
+    matrix.push_back(51);
+    matrix.push_back(14);
+    matrix.push_back(15);
+    matrix.push_back(16);
+    matrix.push_back(17);
+    matrix.push_back(18);
+    matrix.push_back(19);
+    matrix.push_back(52);
+    matrix.push_back(21);
+    matrix.push_back(22);
+    matrix.push_back(51);
+    matrix.push_back(24);
+    matrix.push_back(52);
+
 
     cout << "Original Matrix:" << endl;
     for(int i=0; i<m; i++)
@@ -81,11 +94,13 @@ int main(int argc, char **argv)
     {
         for(int j=0; j<i; j++)
         {
-            //cout << adj[j*g + i];
+            if(debug) cout << adj[j*g + i];
             out |= adj[j*g + i];
             if(count>0 && count%6==0)
             {
-                cout << (char)(out+63);
+                if(debug) cout << " (";
+                if(good) cout << (char)(out+63);
+                if(debug) cout << ") ";
                 out &= 0;
             }
             else 
@@ -95,10 +110,10 @@ int main(int argc, char **argv)
         }
     }
 
-    if(count%6 != 0)
+    if(count%6 != 1)
     {
         out = out << (6 - (count%6));
-        cout << (char)(out+63);
+        if(good) cout << (char)(out+63);
     }
 
     cout << ")\n";
