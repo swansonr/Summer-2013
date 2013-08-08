@@ -46,8 +46,13 @@
 #include "qnode.h"
 #include "cform.h"
 
+#ifdef DEBIAN
+#define INFILE "/media/Elements/Clutch/temp_clutch_in.txt"
+#define OUTFILE "/media/Elements/Clutch/temp_clutch_out.txt"
+#else
 #define INFILE "temp_clutch_in.txt"
 #define OUTFILE "temp_clutch_out.txt"
+#endif
 
 using namespace std;
 
@@ -114,7 +119,7 @@ list<qnode> nauty_cleanup(const vector<int> starts, const int m, const int n)
             qnode temp = qnode(matrix, starts, m, n);
             output.push_front(temp);
 
-            if(counter%1000==0) cout << "!\tCount: " << counter << endl;
+            if(counter%10000==0) cout << "!\tCount: " << counter << endl;
             counter++;
         }
         readf.close();
@@ -332,6 +337,10 @@ int main(int argc, char **argv)
                         {
                             insert_count++;
                             tempf << temp.string_g6(round+1);
+                        }
+                        else
+                        {
+                            fprintf(stderr, "!GOOD HASH!\n");
                         }
                     }
                     //Else it is full but not a counter example

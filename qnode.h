@@ -449,8 +449,8 @@ class qnode
 
 	//	Creates a vector representation of the matrix suitable for hashing
 	//	Specifically, it re-arranges the matrix values depending on where
-	//	they appear in the matrix and not when they were added. This removes
-	//	many (many) duplicate matrices.
+	//	they first appear in the matrix and not when they were added. This
+	//	removes many duplicate matrices.
 
     vector<int> get_hash() const
     {
@@ -460,11 +460,14 @@ class qnode
 
         for(int i=0; i<m*n; i++)
         {
-            if( vals[matrix[i]] == 0 )
+            if( matrix[i] > m*n )
             {
-                vals[matrix[i]] = next++;
+                if( vals[matrix[i]] == 0 )
+                {
+                    vals[matrix[i]] = next++;
+                }
+                res.push_back(vals[matrix[i]]);
             }
-            res.push_back(vals[matrix[i]]);
         }
 
         return res;
