@@ -430,21 +430,22 @@ class qnode
     {
         vector<int> omat = other.get_hash();
 		vector<int> tmat = this->get_hash();
+        bool result = true;
 
         if(omat.size() != matrix.size() || m != other.m || n != other.n)
         {
-            return false;
+            result = false;
         }
 
-        for(int i=0; i<m*n; i++)
+        for(int i=0; i<m*n && result; i++)
         {
             if(omat[i] != tmat[i])
             {
-                return false;
+                result = false;
             }
         }
 
-        return true;
+        return result;
     }
 
 	//	Creates a vector representation of the matrix suitable for hashing
@@ -466,7 +467,7 @@ class qnode
                 {
                     vals[matrix[i]] = next++;
                 }
-                res.push_back(vals[matrix[i]]);
+                res[i] = vals[matrix[i]];
             }
         }
 
@@ -570,7 +571,7 @@ struct node_hash
 size_t hash_value(qnode const& q)
 {
     boost::hash< vector<int> > hasher;
-	//cout << hasher(q.get_hash()) << endl;
+
     return hasher(q.get_hash());
 }
 

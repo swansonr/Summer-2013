@@ -264,9 +264,9 @@ int main(int argc, char **argv)
 
     if(verbose) cout << "!DEBUG INSERTS: " << debug_insert << "/" << debug_count << endl;
     //if(verbose) cout << "!Queue Size: " << (lim <= 0 ? count : "1") << endl;
-    int counter_count = 0;
     int valid_count = 0;
     int insert_count = 0;
+    int counter_count = 0;
     int last_counter = 0;
     int last = 0;
     int bad_full = 0;
@@ -275,6 +275,8 @@ int main(int argc, char **argv)
     while( !nqueue.empty() )
     {
         ofstream tempf;
+        valid_count = 0;
+        insert_count = 0;
 
         //Create input file
         tempf.open(INFILE, ios::trunc);
@@ -319,17 +321,8 @@ int main(int argc, char **argv)
                 
                 if(valid)
                 {
-                    //Check if we have found a counter-example
-                    //if(temp.get_trans() <= 0)
-                    if(!temp.has_trans())
-                    {
-                        if(verbose) cout << "! #" << counter_count++ << " - Counter-Example Found:" << endl; 
-                        if(dreadly) temp.print_dread(initial, counter_count);
-                        else temp.print_clean();
-                        //return EXIT_SUCCESS;
-                    }
                     //Check if the matrix is full or not
-                    else if(!last_insert)
+                    if(!last_insert)
                     {
                         valid_count++;
                         ihash = nhash.insert(temp);
@@ -338,10 +331,14 @@ int main(int argc, char **argv)
                             insert_count++;
                             tempf << temp.string_g6(round+1);
                         }
-                        else
-                        {
-                            fprintf(stderr, "!GOOD HASH!\n");
-                        }
+                    }
+                    //Check if we have found a counter-example
+                    else if(!temp.has_trans())
+                    {
+                        if(verbose) cout << "! #" << counter_count++ << " - Counter-Example Found:" << endl; 
+                        if(dreadly) temp.print_dread(initial, counter_count);
+                        else temp.print_clean();
+                        //return EXIT_SUCCESS;
                     }
                     //Else it is full but not a counter example
                     else
@@ -350,7 +347,7 @@ int main(int argc, char **argv)
                     }
                 }
 
-                if(verbose && insert_count % 1000000 == 0 && insert_count != last)
+                if(verbose && insert_count % 100000 == 0 && insert_count != last)
                 {
                     last = insert_count;
                     if(verbose) cout << "!Valid: " << valid_count << "\tInsert: " << insert_count;
