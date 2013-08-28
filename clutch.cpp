@@ -50,8 +50,8 @@
 #define INFILE "/media/Elements/Clutch/temp_clutch_in.txt"
 #define OUTFILE "/media/Elements/Clutch/temp_clutch_out.txt"
 #else
-#define INFILE "temp_clutch_in.txt"
-#define OUTFILE "temp_clutch_out.txt"
+#define INFILE "/Volumes/MacBac/Clutch/temp_clutch_in.txt"
+#define OUTFILE "/Volumes/MacBac/Clutch/temp_clutch_out.txt"
 #endif
 
 using namespace std;
@@ -140,7 +140,7 @@ int main(int argc, char **argv)
 
     bool verbose = true;
     bool dreadly = true;
-    int m, n, f, lim;
+    int m, n, f, lim, mim;
     qnode single;
     vector< vector<int> > cstart;
     string fline, freqs, initial;
@@ -150,9 +150,17 @@ int main(int argc, char **argv)
     list<qnode> nqueue;
     boost::unordered_set< qnode, boost::hash<qnode> > nhash;
     pair< boost::unordered_set<qnode>::iterator, bool> ihash;
+
+    int valid_count = 0;
+    int insert_count = 0;
+    int counter_count = 0;
+    int last_counter = 0;
+    int last = 0;
+    int bad_full = 0;
+    int round = 1;
     
     //--------- Reading data from input files
-    cin >> m >> n >> f >> lim;
+    cin >> m >> n >> f >> lim >> mim;
 
     forms.resize(f);
     cstart.resize(f);
@@ -164,6 +172,7 @@ int main(int argc, char **argv)
     {
         cout << "!m n f: " << m << " " << n << " " << f;
         if(lim >= 0) cout << " lim == " << lim;
+        if(mim >= 0) cout << " mim == " << mim;
         cout << endl;
     }
 
@@ -187,6 +196,8 @@ int main(int argc, char **argv)
         {
             int lc=1;
             int count=0;
+
+
             while(getline(fhandle, sline))
             {
                 if(lc%(m*n+4) == 0)
@@ -198,11 +209,6 @@ int main(int argc, char **argv)
                         single = qnode(sline, starts, m, n);
                         nqueue.push_front(single);
                         ihash = nhash.insert(single);
-                        if(verbose && lim >= 0)
-                        {
-                            cout << "!Initial Insert:\n";
-                            single.print_clean_comment();
-                        }
                     }
                     count++;
                 }
@@ -229,6 +235,53 @@ int main(int argc, char **argv)
         fhandle.open(fline.c_str(), ifstream::in);
         if(fhandle.is_open())
         {
+            cout << curr << " " << freqs[1] << " " << (mim>=0) << endl;
+            if(curr == (freqs[1] - '0') && mim >= 0)
+            {
+                int cc=1;
+                int dc=0;
+                while(getline(fhandle, sline) && cc < mim)
+                {
+                    if(sline.length() >= m*n)
+                    {
+                        cc++;
+                    }
+                    else
+                    {
+                        dc++;
+                    }
+                }
+                
+                if(cc != mim)
+                {
+                    fprintf(stderr, "!Error: mim line was not found (%d != %d)\n", mim, cc);
+                    return 0;
+                }
+
+                bool valid = true;
+                cform ttemp = cform(sline, m, n);
+
+                qnode qt = nqueue.front();
+                single = qt.insert(ttemp, valid, next_value, false);
+                nqueue.pop_front();
+                nqueue.push_front(single);
+
+                curr_freq++;
+                next_value++;
+                round++;
+
+
+                starts[freqs[1] - '0' - 1] = dc;
+
+                if(!valid)
+                {
+                    fprintf(stderr, "!Error: mim was invalid (%d)\n", mim);
+                    return 0;
+                }
+
+                fhandle.seekg(0);
+            }
+
             while(getline(fhandle, sline))
             {
                 //Then this is the newer version of input files that distinguish
@@ -242,6 +295,7 @@ int main(int argc, char **argv)
                     debug_count++;
                     cform ttemp = cform(sline, m, n);
                     //ttemp.print_clean(m,n);
+
 
                     if( lim < 0 || (lim >= 0 && !single.overlap_check(ttemp)) )
                     {
@@ -264,13 +318,15 @@ int main(int argc, char **argv)
 
     if(verbose) cout << "!DEBUG INSERTS: " << debug_insert << "/" << debug_count << endl;
     //if(verbose) cout << "!Queue Size: " << (lim <= 0 ? count : "1") << endl;
-    int valid_count = 0;
-    int insert_count = 0;
-    int counter_count = 0;
-    int last_counter = 0;
-    int last = 0;
-    int bad_full = 0;
-    int round = 1;
+
+    //Starting matrix:
+    if(verbose && lim >= 0)
+    {
+        cout << "!Initial Insert:\n";
+        qnode single = nqueue.front();
+        single.print_clean_comment();
+    }
+    
     // Start popping the queue and inserting canonical forms
     while( !nqueue.empty() )
     {
@@ -285,6 +341,8 @@ int main(int argc, char **argv)
             fprintf(stderr, "!Error: Unable to open initial nauty files.");
             return 0;
         }
+        tempf << ">>graph6<<";
+        tempf.close();
         
         //If it's the second to last insertion we can do the trivial insertion as well.
         bool last_insert = false;
@@ -329,7 +387,9 @@ int main(int argc, char **argv)
                         if(ihash.second)
                         {
                             insert_count++;
+                            tempf.open(INFILE, ios::app);
                             tempf << temp.string_g6(round+1);
+                            tempf.close();
                         }
                     }
                     //Check if we have found a counter-example
@@ -359,7 +419,7 @@ int main(int argc, char **argv)
         //Clean up using nauty
         if(!last_insert)
         {
-            cout << "!Calling nauty to cleanup on round " << round << " ..." << endl;
+            cout << "!Calling nauty to cleanup on round " << round << ". Total Inserts: " << insert_count << " ..." << endl;
             nqueue.clear();
             nqueue = nauty_cleanup(starts, m, n);
             cout << "!nauty completed. " << nqueue.size() << endl;
@@ -374,8 +434,6 @@ int main(int argc, char **argv)
         //Increment to the next frequency
         curr_freq++;
         next_value++;
-
-        tempf.close();
     }
 
     if(verbose) cout << "!Queue Cleared." << endl;

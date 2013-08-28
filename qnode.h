@@ -316,6 +316,8 @@ class qnode
                 if(count>0 && count%6 == 0)
                 {
                     result += (char)(out+G6OFF);
+                    if(out+G6OFF > 126 || out+G6OFF < 63)
+                        fprintf(stderr, "ERROR: INVALID G6 CHAR: %d %c\n", (int)(out+G6OFF), (char)(out+G6OFF));
                     out &= 0;
                 }
                 else
@@ -331,6 +333,8 @@ class qnode
         {
             out = out << (6 - (count%6));
             result += (char)(out+G6OFF);
+            if(out+G6OFF > 126 || out+G6OFF < 63)
+                fprintf(stderr, "ERROR: INVALID G6 CHAR: %d %c\n", (int)(out+G6OFF), (char)(out+G6OFF));
         }
 
         result += "\n";
