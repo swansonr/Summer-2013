@@ -30,6 +30,7 @@
  *
  */
 
+#include <omp.h>
 #include <list>
 //#include <boost/timer.hpp>
 #include <boost/unordered_set.hpp>
@@ -50,8 +51,8 @@
 #define INFILE "/media/Elements/Clutch/temp_clutch_in.txt"
 #define OUTFILE "/media/Elements/Clutch/temp_clutch_out.txt"
 #else
-#define INFILE "/Volumes/MacBac/Clutch/temp_clutch_in.txt"
-#define OUTFILE "/Volumes/MacBac/Clutch/temp_clutch_out.txt"
+#define INFILE "/data/ugrad/umswans5/temp_clutch_in.txt"
+#define OUTFILE "/data/ugrad/umswans5/temp_clutch_out.txt"
 #endif
 
 using namespace std;
@@ -64,7 +65,7 @@ list<qnode> nauty_cleanup(const vector<int> starts, const int m, const int n)
     if(pid==0)      //Child Again
     {
         cout << "!Nauty Step 1." << endl;
-        execl("nauty/shortg", "nauty/shortg", INFILE, OUTFILE, "-k", "-v", (char *)0);
+        execl("nauty/shortg", "nauty/shortg", INFILE, OUTFILE, "-k", "-v", "-T/data/ugrad/umswans5/tmp", (char *)0);
         exit(0);
     }
     else            //Parent Again
@@ -119,7 +120,7 @@ list<qnode> nauty_cleanup(const vector<int> starts, const int m, const int n)
             qnode temp = qnode(matrix, starts, m, n);
             output.push_front(temp);
 
-            if(counter%10000==0) cout << "!\tCount: " << counter << endl;
+            if(counter%100000==0) cout << "!\tCount: " << counter << endl;
             counter++;
         }
         readf.close();
@@ -137,6 +138,16 @@ int main(int argc, char **argv)
 {
 	//cout << "!Timer Started." << endl;
 	//boost::timer::auto_cpu_timer t_dot;
+    
+    omp_lock_t writelock;
+    //omp_lock_t hashlock;
+    omp_lock_t queuelock;
+    omp_lock_t outlock;
+
+    omp_init_lock(&writelock);
+    //omp_init_lock(&hashlock);
+    omp_init_lock(&queuelock);
+    omp_init_lock(&outlock);
 
     bool verbose = true;
     bool dreadly = true;
@@ -148,8 +159,8 @@ int main(int argc, char **argv)
 
     //priority_queue< qnode, vector<qnode>, less<vector<qnode>::value_type> > nqueue;
     list<qnode> nqueue;
-    boost::unordered_set< qnode, boost::hash<qnode> > nhash;
-    pair< boost::unordered_set<qnode>::iterator, bool> ihash;
+    //boost::unordered_set< qnode, boost::hash<qnode> > nhash;
+    //pair< boost::unordered_set<qnode>::iterator, bool> ihash;
 
     int valid_count = 0;
     int insert_count = 0;
@@ -205,10 +216,11 @@ int main(int argc, char **argv)
                     if(lim < 0 || lim == count)
                     {
                         if(lim >= 0) starts[freqs[0] - '0' - 1] = lim;
+                        else starts[freqs[0] - '0' - 1] = 0;
 
                         single = qnode(sline, starts, m, n);
                         nqueue.push_front(single);
-                        ihash = nhash.insert(single);
+                        //ihash = nhash.insert(single);
                     }
                     count++;
                 }
@@ -235,7 +247,7 @@ int main(int argc, char **argv)
         fhandle.open(fline.c_str(), ifstream::in);
         if(fhandle.is_open())
         {
-            cout << curr << " " << freqs[1] << " " << (mim>=0) << endl;
+            //cout << curr << " " << freqs[1] << " " << (mim>=0) << endl;
             if(curr == (freqs[1] - '0') && mim >= 0)
             {
                 int cc=1;
@@ -317,7 +329,7 @@ int main(int argc, char **argv)
     }
 
     if(verbose) cout << "!DEBUG INSERTS: " << debug_insert << "/" << debug_count << endl;
-    //if(verbose) cout << "!Queue Size: " << (lim <= 0 ? count : "1") << endl;
+    if(verbose) cout << "!Queue Size: " << nqueue.size() << endl;
 
     //Starting matrix:
     if(verbose && lim >= 0)
@@ -357,12 +369,18 @@ int main(int argc, char **argv)
         int next_freq = freqs[curr_freq] - '0' - 1;
         vector<cform> curr_forms = forms.at(next_freq);
         int skip = 0;
-        if(freqs[curr_freq] == freqs[0]) skip = lim;
+        if(freqs[curr_freq] == freqs[0] && lim >= 0) skip = lim;
+
+        int curr_queue_size = nqueue.size();
         
-        while( !nqueue.empty() )
+        //while( !nqueue.empty() )
+        #pragma omp parallel for
+        for(int omp=0; omp<curr_queue_size; omp++)
         {
+            omp_set_lock(&queuelock);
             qnode curr = nqueue.front();
             nqueue.pop_front();
+            omp_unset_lock(&queuelock);
 
             //If we're limiting values then we want to skip frequencies that we know won't work.
             //int skip = cstart[next_freq].at( curr.get_skip(next_freq) ); //((lim > 0) && (next_freq == 0)) ? cstart[lim] : 0;
@@ -383,21 +401,28 @@ int main(int argc, char **argv)
                     if(!last_insert)
                     {
                         valid_count++;
-                        ihash = nhash.insert(temp);
-                        if(ihash.second)
+                        //omp_set_lock(&hashlock);
+                        //ihash = nhash.insert(temp);
+                        //omp_unset_lock(&hashlock);
+
+                        //if(ihash.second)
                         {
+                            omp_set_lock(&writelock);
                             insert_count++;
                             tempf.open(INFILE, ios::app);
                             tempf << temp.string_g6(round+1);
                             tempf.close();
+                            omp_unset_lock(&writelock);
                         }
                     }
                     //Check if we have found a counter-example
                     else if(!temp.has_trans())
                     {
+                        omp_set_lock(&outlock);
                         if(verbose) cout << "! #" << counter_count++ << " - Counter-Example Found:" << endl; 
                         if(dreadly) temp.print_dread(initial, counter_count);
                         else temp.print_clean();
+                        omp_unset_lock(&outlock);
                         //return EXIT_SUCCESS;
                     }
                     //Else it is full but not a counter example
@@ -407,7 +432,7 @@ int main(int argc, char **argv)
                     }
                 }
 
-                if(verbose && insert_count % 100000 == 0 && insert_count != last)
+                if(verbose && insert_count % 1000000 == 0 && insert_count != last)
                 {
                     last = insert_count;
                     if(verbose) cout << "!Valid: " << valid_count << "\tInsert: " << insert_count;
@@ -415,6 +440,7 @@ int main(int argc, char **argv)
                 }
             }
         }
+        //OpenMP Loop finished
 
         //Clean up using nauty
         if(!last_insert)
@@ -429,7 +455,7 @@ int main(int argc, char **argv)
 
         //The hash can't possibly be of any use to us anymore since all of the next values will be bigger.
         //We can safely empty it now
-        nhash.clear();
+        //nhash.clear();
 
         //Increment to the next frequency
         curr_freq++;
