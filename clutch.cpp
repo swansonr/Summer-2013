@@ -48,19 +48,73 @@
 #include "cform.h"
 
 #ifdef DEBIAN
-#define INFILE "/media/Elements/Clutch/temp_clutch_in.txt"
-#define OUTFILE "/media/Elements/Clutch/temp_clutch_out.txt"
+#define INFILE "/Volumes/MacBac/Clutch/temp_clutch_in.txt"
+#define OUTFILE "/Volumes/MacBac/Clutch/temp_clutch_out.txt"
+#define RESFILE "/Volumes/MacBac/Clutch/temp_clutch_results.txt"
 #else
 #define INFILE "/data/ugrad/umswans5/temp_clutch_in.txt"
 #define OUTFILE "/data/ugrad/umswans5/temp_clutch_out.txt"
+#define RESFILE "/data/ugrad/umseans5/temp_clutch_results.txt"
 #endif
 
 using namespace std;
 
-list<qnode> nauty_cleanup(const vector<int> starts, const int m, const int n)
+qnode read_qnode(ifstream &readf, const vector<int> starts, const int m, const int n, bool &valid)
 {
-    list<qnode> output;
+    qnode result;
+    //Open INFILE
+    //ifstream readf;
+    //readf.open(INFILE, ios::in);
+    if(readf.is_open())
+    {
+        int counter = 1;
+        vector<int> matrix(m*n);
+        int curr = 2*m*n;
+        string line;
+        //cout << "!Reading nautified file... " << INFILE << endl;
+        //string line; 
+        getline(readf, line);   //Initial empty line
+        //while(readf.good())
+        //{
+            for(int i=0; i<m*n && readf.good(); i++)
+            {
+                getline(readf, line);
+                matrix[i] = i+1;
+            }
 
+            getline(readf, line);
+            getline(readf, line);
+            while(line.compare("") != 0)
+            {
+                //cout << line << endl;
+                for(int i=0; i<line.size(); i++)
+                {
+                    if(line[i] != '0') matrix[i] = curr;
+                }
+                curr++;
+                getline(readf, line);
+            }
+                    
+            result = qnode(matrix, starts, m, n);
+            valid = true;
+            //output.push_front(temp);
+
+            //if(counter%100000==0) cout << "!\tCount: " << counter << endl;
+            //counter++;
+        //}
+        //readf.close();
+    }
+    else
+    {
+        fprintf(stderr, "!Error: Unable to open completed nauty files.");
+        valid = false;
+    }
+
+    return result;
+}
+
+void nauty_cleanup(const vector<int> starts, const int m, const int n)
+{
     pid_t pid = fork();
     if(pid==0)      //Child Again
     {
@@ -84,54 +138,6 @@ list<qnode> nauty_cleanup(const vector<int> starts, const int m, const int n)
             wait(NULL);
         }
     }
-
-    //Open INFILE
-    ifstream readf;
-    readf.open(INFILE, ios::in);
-    if(readf.is_open())
-    {
-        int counter = 1;
-        cout << "!Reading nautified file... " << INFILE << endl;
-        string line; 
-        getline(readf, line);   //Initial empty line
-        while(readf.good())
-        {
-            vector<int> matrix(m*n);
-            int curr = 2*m*n;
-            for(int i=0; i<m*n && readf.good(); i++)
-            {
-                getline(readf, line);
-                matrix[i] = i+1;
-            }
-
-            getline(readf, line);
-            getline(readf, line);
-            while(line.compare("") != 0)
-            {
-                //cout << line << endl;
-                for(int i=0; i<line.size(); i++)
-                {
-                    if(line[i] != '0') matrix[i] = curr;
-                }
-                curr++;
-                getline(readf, line);
-            }
-                    
-            qnode temp = qnode(matrix, starts, m, n);
-            output.push_front(temp);
-
-            if(counter%100000==0) cout << "!\tCount: " << counter << endl;
-            counter++;
-        }
-        readf.close();
-    }
-    else
-    {
-        fprintf(stderr, "!Error: Unable to open completed nauty files.");
-    }
-
-    return output;
-
 }
 
 int main(int argc, char **argv)
@@ -151,17 +157,18 @@ int main(int argc, char **argv)
 
     bool verbose = true;
     bool dreadly = true;
-    int m, n, f, lim, mim;
+    int m, n, f, lim;
     qnode single;
     vector< vector<int> > cstart;
     string fline, freqs, initial;
     vector< vector<cform> > forms;
 
     //priority_queue< qnode, vector<qnode>, less<vector<qnode>::value_type> > nqueue;
-    list<qnode> nqueue;
+    //list<qnode> nqueue;
     //boost::unordered_set< qnode, boost::hash<qnode> > nhash;
     //pair< boost::unordered_set<qnode>::iterator, bool> ihash;
 
+    int curr_queue_size = 0;
     int valid_count = 0;
     int insert_count = 0;
     int counter_count = 0;
@@ -171,7 +178,7 @@ int main(int argc, char **argv)
     int round = 1;
     
     //--------- Reading data from input files
-    cin >> m >> n >> f >> lim >> mim;
+    cin >> m >> n >> f >> lim;
 
     forms.resize(f);
     cstart.resize(f);
@@ -183,7 +190,6 @@ int main(int argc, char **argv)
     {
         cout << "!m n f: " << m << " " << n << " " << f;
         if(lim >= 0) cout << " lim == " << lim;
-        if(mim >= 0) cout << " mim == " << mim;
         cout << endl;
     }
 
@@ -196,6 +202,9 @@ int main(int argc, char **argv)
     //-------- Reading canonical forms
     int curr = f;
     vector<int> starts(freqs[0] - '0');
+    ofstream ofile;
+    ofile.open(RESFILE, ios::out);
+
     if(getline(cin, fline))
     {
         if(verbose) cout << "!Opening File: " << fline << endl;
@@ -203,11 +212,11 @@ int main(int argc, char **argv)
         string sline;
 
         fhandle.open(fline.c_str(), ifstream::in);
-        if(fhandle.is_open())
+
+        if(fhandle.is_open() && ofile.is_open())
         {
             int lc=1;
             int count=0;
-
 
             while(getline(fhandle, sline))
             {
@@ -219,8 +228,10 @@ int main(int argc, char **argv)
                         else starts[freqs[0] - '0' - 1] = 0;
 
                         single = qnode(sline, starts, m, n);
-                        nqueue.push_front(single);
+                        //nqueue.push_front(single);
                         //ihash = nhash.insert(single);
+                        ofile << single.string_g6(1);
+                        insert_count++;
                     }
                     count++;
                 }
@@ -231,11 +242,16 @@ int main(int argc, char **argv)
 		{
 			fprintf(stderr, "Error: Unable to open file %s\n", fline.c_str());
 		}
+
+        fhandle.close();
     }
+
+    ofile.close();
 
     //-------- Read canonical permutations
     int debug_count = 0;
     int debug_insert = 0;
+    bool last_insert = false;
 
     while(getline(cin, fline) && curr >= 0)
     {
@@ -247,53 +263,6 @@ int main(int argc, char **argv)
         fhandle.open(fline.c_str(), ifstream::in);
         if(fhandle.is_open())
         {
-            //cout << curr << " " << freqs[1] << " " << (mim>=0) << endl;
-            if(curr == (freqs[1] - '0') && mim >= 0)
-            {
-                int cc=1;
-                int dc=0;
-                while(getline(fhandle, sline) && cc < mim)
-                {
-                    if(sline.length() >= m*n)
-                    {
-                        cc++;
-                    }
-                    else
-                    {
-                        dc++;
-                    }
-                }
-                
-                if(cc != mim)
-                {
-                    fprintf(stderr, "!Error: mim line was not found (%d != %d)\n", mim, cc);
-                    return 0;
-                }
-
-                bool valid = true;
-                cform ttemp = cform(sline, m, n);
-
-                qnode qt = nqueue.front();
-                single = qt.insert(ttemp, valid, next_value, false);
-                nqueue.pop_front();
-                nqueue.push_front(single);
-
-                curr_freq++;
-                next_value++;
-                round++;
-
-
-                starts[freqs[1] - '0' - 1] = dc;
-
-                if(!valid)
-                {
-                    fprintf(stderr, "!Error: mim was invalid (%d)\n", mim);
-                    return 0;
-                }
-
-                fhandle.seekg(0);
-            }
-
             while(getline(fhandle, sline))
             {
                 //Then this is the newer version of input files that distinguish
@@ -307,7 +276,6 @@ int main(int argc, char **argv)
                     debug_count++;
                     cform ttemp = cform(sline, m, n);
                     //ttemp.print_clean(m,n);
-
 
                     if( lim < 0 || (lim >= 0 && !single.overlap_check(ttemp)) )
                     {
@@ -329,20 +297,22 @@ int main(int argc, char **argv)
     }
 
     if(verbose) cout << "!DEBUG INSERTS: " << debug_insert << "/" << debug_count << endl;
-    if(verbose) cout << "!Queue Size: " << nqueue.size() << endl;
+    //if(verbose) cout << "!Queue Size: " << nqueue.size() << endl;
 
     //Starting matrix:
     if(verbose && lim >= 0)
     {
         cout << "!Initial Insert:\n";
-        qnode single = nqueue.front();
+        //qnode single = nqueue.front();
         single.print_clean_comment();
     }
     
     // Start popping the queue and inserting canonical forms
-    while( !nqueue.empty() )
+    while( !last_insert )
     {
         ofstream tempf;
+        ifstream tempr;
+        curr_queue_size = insert_count;
         valid_count = 0;
         insert_count = 0;
 
@@ -356,8 +326,15 @@ int main(int argc, char **argv)
         tempf << ">>graph6<<";
         tempf.close();
         
+        //Open results file for reading
+        tempr.open(RESFILE, ios::in);
+        if(!tempr.is_open())
+        {
+            fprintf(stderr, "!Error: Unable to open nauty result file.");
+            return 0;
+        }
+
         //If it's the second to last insertion we can do the trivial insertion as well.
-        bool last_insert = false;
         if(curr_freq == (freqs.size() - 2))
         {
             last_insert = true;
@@ -371,21 +348,20 @@ int main(int argc, char **argv)
         int skip = 0;
         if(freqs[curr_freq] == freqs[0] && lim >= 0) skip = lim;
 
-        int curr_queue_size = nqueue.size();
-        
         //while( !nqueue.empty() )
         #pragma omp parallel for
         for(int omp=0; omp<curr_queue_size; omp++)
         {
+            bool read_result = false;
             omp_set_lock(&queuelock);
-            qnode curr = nqueue.front();
-            nqueue.pop_front();
+            qnode curr = read_qnode(tempr, starts, m, n, read_result);
+            //nqueue.pop_front();
             omp_unset_lock(&queuelock);
 
             //If we're limiting values then we want to skip frequencies that we know won't work.
             //int skip = cstart[next_freq].at( curr.get_skip(next_freq) ); //((lim > 0) && (next_freq == 0)) ? cstart[lim] : 0;
 
-            for(int i=skip; i<curr_forms.size(); i++)
+            for(int i=skip; i<curr_forms.size() && read_result; i++)
             {
                 //Check if the skip increases yet
                 //if(cstart[next_freq].size() > curr.get_skip(next_freq)+1 && i > cstart[next_freq].at( curr.get_skip(next_freq)+1 ))
@@ -436,7 +412,7 @@ int main(int argc, char **argv)
                 {
                     last = insert_count;
                     if(verbose) cout << "!Valid: " << valid_count << "\tInsert: " << insert_count;
-                    if(verbose) cout << "\tLast Insertions: " << last_counter << " (" << bad_full << ") Left: " << nqueue.size() << endl;
+                    if(verbose) cout << "\tLast Insertions: " << last_counter << " (" << bad_full << ")" << endl;// Left: " << nqueue.size() << endl;
                 }
             }
         }
@@ -446,12 +422,12 @@ int main(int argc, char **argv)
         if(!last_insert)
         {
             cout << "!Calling nauty to cleanup on round " << round << ". Total Inserts: " << insert_count << " ..." << endl;
-            nqueue.clear();
-            nqueue = nauty_cleanup(starts, m, n);
-            cout << "!nauty completed. " << nqueue.size() << endl;
+            //nqueue.clear();
+            nauty_cleanup(starts, m, n);
+            cout << "!nauty completed. " << endl; //nqueue.size() << endl;
         }
 
-        cout << "!Round " << round++ << " Finished. New Size = " << nqueue.size() << endl;
+        cout << "!Round " << round++ << " Finished." << endl; // New Size = " << nqueue.size() << endl;
 
         //The hash can't possibly be of any use to us anymore since all of the next values will be bigger.
         //We can safely empty it now
