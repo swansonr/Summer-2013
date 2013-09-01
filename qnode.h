@@ -306,7 +306,7 @@ class qnode
         result += (char)(g+G6OFF);    //R(x) = g + 63
 
         int count = 1;
-        unsigned char out;
+        unsigned char out = 0;
 
         for(int i=1; i<g; i++)
         {
@@ -317,7 +317,7 @@ class qnode
                 {
                     result += (char)(out+G6OFF);
                     if(out+G6OFF > 126 || out+G6OFF < 63)
-                        fprintf(stderr, "ERROR: INVALID G6 CHAR: %d %c\n", (int)(out+G6OFF), (char)(out+G6OFF));
+                        fprintf(stderr, "!ERROR: INVALID G6 CHAR: %d %c\n", (int)(out+G6OFF), (char)(out+G6OFF));
                     out &= 0;
                 }
                 else

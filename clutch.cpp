@@ -54,7 +54,7 @@
 #else
 #define INFILE "/data/ugrad/umswans5/temp_clutch_in.txt"
 #define OUTFILE "/data/ugrad/umswans5/temp_clutch_out.txt"
-#define RESFILE "/data/ugrad/umseans5/temp_clutch_results.txt"
+#define RESFILE "/data/ugrad/umswans5/temp_clutch_results.txt"
 #endif
 
 using namespace std;
@@ -412,7 +412,6 @@ int main(int argc, char **argv)
                     else if(!temp.has_trans())
                     {
                         omp_set_lock(&outlock);
-                        cout << "READ COUNT: " << read_count << endl;
                         if(verbose) cout << "! #" << counter_count++ << " - Counter-Example Found:" << endl; 
                         if(dreadly) temp.print_dread(initial, counter_count);
                         else temp.print_clean();
