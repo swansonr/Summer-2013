@@ -48,9 +48,9 @@
 #include "cform.h"
 
 #ifdef DEBIAN
-#define INFILE "/Volumes/MacBac/Clutch/temp_clutch_in.txt"
-#define OUTFILE "/Volumes/MacBac/Clutch/temp_clutch_out.txt"
-#define RESFILE "/Volumes/MacBac/Clutch/temp_clutch_results.txt"
+#define INFILE "temp_clutch_in.txt"
+#define OUTFILE "temp_clutch_out.txt"
+#define RESFILE "temp_clutch_results.txt"
 #else
 #define INFILE "/data/ugrad/umswans5/temp_clutch_in.txt"
 #define OUTFILE "/data/ugrad/umswans5/temp_clutch_out.txt"
@@ -71,22 +71,23 @@ qnode read_qnode(ifstream &readf, const vector<int> starts, const int m, const i
         vector<int> matrix(m*n);
         int curr = 2*m*n;
         string line;
-        //cout << "!Reading nautified file... " << INFILE << endl;
-        //string line; 
+
         getline(readf, line);   //Initial empty line
-        //while(readf.good())
-        //{
-            for(int i=0; i<m*n && readf.good(); i++)
+        while(readf.good() && line[0] != 'G')
+        {
+            getline(readf, line);
+        }
+            for(int i=0; i<m*n-1 && readf.good(); i++)
             {
                 getline(readf, line);
                 matrix[i] = i+1;
             }
+            matrix[m*n-1] = m*n;
 
             getline(readf, line);
             getline(readf, line);
             while(line.compare("") != 0)
             {
-                //cout << line << endl;
                 for(int i=0; i<line.size(); i++)
                 {
                     if(line[i] != '0') matrix[i] = curr;
@@ -130,7 +131,7 @@ void nauty_cleanup(const vector<int> starts, const int m, const int n)
         if(pid==0)      //Last Child
         {
             cout << "!Nauty Step 2." << endl;
-            execl("nauty/listg", "nauty/listg", OUTFILE, INFILE, "-o1", "-a", (char *)0);
+            execl("nauty/listg", "nauty/listg", OUTFILE, RESFILE, "-o1", "-a", (char *)0);
             exit(0);
         }
         else
@@ -168,6 +169,7 @@ int main(int argc, char **argv)
     //boost::unordered_set< qnode, boost::hash<qnode> > nhash;
     //pair< boost::unordered_set<qnode>::iterator, bool> ihash;
 
+    int read_count = 0;
     int curr_queue_size = 0;
     int valid_count = 0;
     int insert_count = 0;
@@ -203,7 +205,7 @@ int main(int argc, char **argv)
     int curr = f;
     vector<int> starts(freqs[0] - '0');
     ofstream ofile;
-    ofile.open(RESFILE, ios::out);
+    ofile.open(INFILE, ios::out);
 
     if(getline(cin, fline))
     {
@@ -231,6 +233,8 @@ int main(int argc, char **argv)
                         //nqueue.push_front(single);
                         //ihash = nhash.insert(single);
                         ofile << single.string_g6(1);
+                        //cout << "INSERT:" << endl;
+                        //single.print_clean();
                         insert_count++;
                     }
                     count++;
@@ -307,12 +311,14 @@ int main(int argc, char **argv)
         single.print_clean_comment();
     }
     
+    nauty_cleanup(starts, m, n);
+
     // Start popping the queue and inserting canonical forms
     while( !last_insert )
     {
         ofstream tempf;
         ifstream tempr;
-        curr_queue_size = insert_count;
+        curr_queue_size = 0;
         valid_count = 0;
         insert_count = 0;
 
@@ -325,7 +331,15 @@ int main(int argc, char **argv)
         }
         tempf << ">>graph6<<";
         tempf.close();
-        
+
+        tempr.open(OUTFILE, ios::in);
+        if(tempr.is_open())
+        {
+            string tline;
+            while(getline(tempr, tline)) curr_queue_size++;
+        }
+        tempr.close();
+
         //Open results file for reading
         tempr.open(RESFILE, ios::in);
         if(!tempr.is_open())
@@ -348,6 +362,7 @@ int main(int argc, char **argv)
         int skip = 0;
         if(freqs[curr_freq] == freqs[0] && lim >= 0) skip = lim;
 
+        read_count = 0;
         //while( !nqueue.empty() )
         #pragma omp parallel for
         for(int omp=0; omp<curr_queue_size; omp++)
@@ -356,6 +371,8 @@ int main(int argc, char **argv)
             omp_set_lock(&queuelock);
             qnode curr = read_qnode(tempr, starts, m, n, read_result);
             //nqueue.pop_front();
+            //curr.print_clean();
+            if(read_result) read_count++;
             omp_unset_lock(&queuelock);
 
             //If we're limiting values then we want to skip frequencies that we know won't work.
@@ -395,6 +412,7 @@ int main(int argc, char **argv)
                     else if(!temp.has_trans())
                     {
                         omp_set_lock(&outlock);
+                        cout << "READ COUNT: " << read_count << endl;
                         if(verbose) cout << "! #" << counter_count++ << " - Counter-Example Found:" << endl; 
                         if(dreadly) temp.print_dread(initial, counter_count);
                         else temp.print_clean();
@@ -412,23 +430,28 @@ int main(int argc, char **argv)
                 {
                     last = insert_count;
                     if(verbose) cout << "!Valid: " << valid_count << "\tInsert: " << insert_count;
+                    if(verbose) cout << "\tTotal Read: " << read_count << "/" << curr_queue_size;
                     if(verbose) cout << "\tLast Insertions: " << last_counter << " (" << bad_full << ")" << endl;// Left: " << nqueue.size() << endl;
                 }
             }
         }
         //OpenMP Loop finished
 
+        //return 0;
         //Clean up using nauty
         if(!last_insert)
         {
-            cout << "!Calling nauty to cleanup on round " << round << ". Total Inserts: " << insert_count << " ..." << endl;
+            cout << "!Calling nauty to cleanup on round " << round << ". Total Inserts: " << insert_count << " Read Count: " << read_count << endl;
             //nqueue.clear();
+            ofstream cleaner;
+            cleaner.open(RESFILE, ios::trunc);
+            cleaner << endl;
+            cleaner.close();
             nauty_cleanup(starts, m, n);
             cout << "!nauty completed. " << endl; //nqueue.size() << endl;
         }
 
         cout << "!Round " << round++ << " Finished." << endl; // New Size = " << nqueue.size() << endl;
-
         //The hash can't possibly be of any use to us anymore since all of the next values will be bigger.
         //We can safely empty it now
         //nhash.clear();
@@ -436,6 +459,7 @@ int main(int argc, char **argv)
         //Increment to the next frequency
         curr_freq++;
         next_value++;
+
     }
 
     if(verbose) cout << "!Queue Cleared." << endl;
